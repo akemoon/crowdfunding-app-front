@@ -39,7 +39,7 @@
     background: var(--accent-soft);
   }
 
-  /* Active link — SvelteKit adds aria-current="page" automatically */
+  /* Active link - SvelteKit adds aria-current="page" automatically */
   .nav-item[aria-current='page'] {
     color: var(--accent);
     font-weight: 600;

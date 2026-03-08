@@ -26,10 +26,11 @@
 
     // ApiError has a 'code' field; SigninTokens does not
     if ('code' in result) {
-      if (result.code === 'unauthorized') {
+      console.error('[signin]', result.code, result.message);
+      if (result.code === 'invalid_credentials') {
         generalError = 'Неверный email или пароль';
       } else {
-        generalError = result.message;
+        generalError = 'Произошла ошибка. Попробуйте позже.';
       }
       loading = false;
       return;

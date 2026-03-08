@@ -35,14 +35,15 @@
       return;
     }
 
+    console.error('[signup]', err.code, err.message);
     if (err.code === 'validation_error' && err.fields) {
       fieldErrors = err.fields;
     } else if (err.code === 'email_exists') {
-      fieldErrors = { email: err.message };
+      fieldErrors = { email: 'Email уже зарегистрирован' };
     } else if (err.code === 'username_exists') {
-      fieldErrors = { username: err.message };
+      fieldErrors = { username: 'Имя пользователя уже занято' };
     } else {
-      generalError = err.message;
+      generalError = 'Произошла ошибка. Попробуйте позже.';
     }
 
     loading = false;
