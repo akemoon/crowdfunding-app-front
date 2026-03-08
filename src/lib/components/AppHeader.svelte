@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
+  import { signout as apiSignout } from '$lib/api';
 
   // Checked on mount (client-only: localStorage is not available during SSR)
   let isAuth = false;
@@ -15,7 +16,10 @@
     dropdownOpen = !dropdownOpen;
   }
 
-  function signout() {
+  async function signout() {
+    const refreshToken = localStorage.getItem('refreshToken') ?? '';
+    // Fire-and-forget: clear session locally regardless of API response
+    apiSignout(refreshToken);
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     isAuth = false;
