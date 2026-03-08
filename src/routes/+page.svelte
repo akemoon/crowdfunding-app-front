@@ -1,3 +1,15 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+
+  let startHref = '/signin';
+
+  onMount(() => {
+    if (localStorage.getItem('accessToken')) {
+      startHref = '/projects/my';
+    }
+  });
+</script>
+
 <svelte:head>
   <title>Краудфандинг</title>
 </svelte:head>
@@ -6,7 +18,7 @@
   <h1 class="hero-title">Поддерживай проекты,<br />которые вдохновляют</h1>
   <p class="hero-sub">Платформа для авторов и их аудитории. Запускай идеи, собирай поддержку, воплощай задуманное.</p>
   <div class="hero-actions">
-    <a class="btn-primary" href="/signup">Начать</a>
+    <a class="btn-primary" href={startHref}>Начать</a>
     <a class="btn-secondary" href="/projects">Смотреть проекты</a>
   </div>
 </section>

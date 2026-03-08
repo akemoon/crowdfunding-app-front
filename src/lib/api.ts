@@ -14,12 +14,34 @@ export interface SignupPayload {
   password: string;
 }
 
+export interface SigninPayload {
+  email: string;
+  password: string;
+}
+
+export interface SigninTokens {
+  accessToken: string;
+  refreshToken: string;
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   try {
     return await res.json();
   } catch {
     return { code: 'internal_error', message: 'Unknown error' };
   }
+}
+
+// Returns tokens on success, ApiError otherwise
+export async function signin(payload: SigninPayload): Promise<SigninTokens | ApiError> {
+  const res = await fetch(`${BASE}/signin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+
+  if (res.status === 200) return res.json() as Promise<SigninTokens>;
+  return parseError(res);
 }
 
 // Returns null on success, ApiError otherwise
