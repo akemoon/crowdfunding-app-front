@@ -7,7 +7,7 @@ export default defineConfig({
     proxy: {
       // TODO: remove proxy in production, configure reverse proxy (nginx etc.) instead
       '/api': {
-        target: 'http://localhost:9000',
+        target: 'http://localhost:10001',
         rewrite: (path) => path.replace(/^\/api/, '')
       }
     }
