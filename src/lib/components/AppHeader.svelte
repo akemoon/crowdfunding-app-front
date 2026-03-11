@@ -2,14 +2,24 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { signout as apiSignout } from '$lib/api';
+  import { signout as apiSignout, getMe } from '$lib/api';
 
   // Checked on mount (client-only: localStorage is not available during SSR)
   let isAuth = false;
   let dropdownOpen = false;
+  let displayName = '';
 
-  onMount(() => {
-    isAuth = !!localStorage.getItem('accessToken');
+  onMount(async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+    isAuth = true;
+
+    const result = await getMe(token);
+    if ('code' in result) {
+      console.error('[me]', result.code, result.message);
+    } else {
+      displayName = result.displayName;
+    }
   });
 
   function toggleDropdown() {
@@ -49,7 +59,7 @@
     {#if isAuth}
       <div class="user-menu">
         <button class="btn-account" on:click={toggleDropdown}>
-          Аккаунт <span class="chevron">▾</span>
+          {displayName || 'Аккаунт'} <span class="chevron">▾</span>
         </button>
         {#if dropdownOpen}
           <div class="dropdown">

@@ -1,6 +1,6 @@
-// In dev: requests go through Vite proxy (/api -> localhost:8080)
-// TODO: set PUBLIC_API_URL in .env for production
-const BASE = import.meta.env.PUBLIC_API_URL ?? '/api';
+import { PUBLIC_API_URL } from '$env/static/public';
+
+const BASE = PUBLIC_API_URL;
 
 export interface ApiError {
   code: string;
@@ -53,6 +53,46 @@ export async function signout(refreshToken: string): Promise<ApiError | null> {
   });
 
   if (res.status === 200) return null;
+  return parseError(res);
+}
+
+export interface UserProfile {
+  id:          string;
+  username:    string;
+  displayName: string;
+  description: string;
+  avatarUrl:   string;
+}
+
+// Returns user profile on success, ApiError otherwise
+export async function getMe(accessToken: string): Promise<UserProfile | ApiError> {
+  const res = await fetch(`${BASE}/users/me`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (res.status === 200) return res.json() as Promise<UserProfile>;
+  return parseError(res);
+}
+
+export interface UpdateProfilePayload {
+  username?:    string;
+  displayName?: string;
+  description?: string;
+}
+
+// Returns updated profile on success, ApiError otherwise
+export async function updateMe(
+  accessToken: string,
+  payload: UpdateProfilePayload,
+): Promise<UserProfile | ApiError> {
+  const res = await fetch(`${BASE}/users/me`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (res.status === 200) return res.json() as Promise<UserProfile>;
   return parseError(res);
 }
 
