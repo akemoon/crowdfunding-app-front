@@ -146,6 +146,35 @@ export async function getProjects(
   return parseError(res);
 }
 
+export interface ContributePayload {
+  projectID: string;
+  amount:    number;
+}
+
+// Returns null on success, ApiError otherwise
+export async function contribute(
+  accessToken: string,
+  payload: ContributePayload,
+): Promise<ApiError | null> {
+  const res = await fetch(`${BASE}/payment/contribute`, {
+    method: 'POST',
+    headers: {
+      'Content-Type':  'application/json',
+      Authorization:   `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(payload),
+  });
+  if (res.status === 204) return null;
+  return parseError(res);
+}
+
+// Returns a single project by ID, ApiError otherwise
+export async function getProject(id: string): Promise<Project | ApiError> {
+  const res = await fetch(`${BASE}/projects/${encodeURIComponent(id)}`);
+  if (res.status === 200) return res.json() as Promise<Project>;
+  return parseError(res);
+}
+
 // Returns null on success, ApiError otherwise
 export async function signup(payload: SignupPayload): Promise<ApiError | null> {
   const res = await fetch(`${BASE}/signup`, {

@@ -140,17 +140,19 @@
   {#if items.length > 0}
     <ul class="project-list">
       {#each items as project (project.id)}
-        <li class="project-item">
-          <span class="project-name">{project.name}</span>
-          <span class="project-category">
-            {CATEGORY_LABELS[project.category] ?? project.category}
-          </span>
-          {#if status === 'finished'}
-            <span class="project-status">Завершён</span>
-          {/if}
-          {#if project.isBoosted}
-            <span class="boosted">★ Топ</span>
-          {/if}
+        <li>
+          <a class="project-item" href="/projects/{project.id}">
+            <span class="project-name">{project.name}</span>
+            <span class="project-category">
+              {CATEGORY_LABELS[project.category] ?? project.category}
+            </span>
+            {#if status === 'finished'}
+              <span class="project-status">Завершён</span>
+            {/if}
+            {#if project.isBoosted}
+              <span class="boosted">★ Топ</span>
+            {/if}
+          </a>
         </li>
       {/each}
     </ul>
@@ -262,6 +264,12 @@
     border: 1px solid var(--line);
     border-radius: 8px;
     background: #fff;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .project-item:hover {
+    border-color: var(--accent);
   }
 
   .project-name {
