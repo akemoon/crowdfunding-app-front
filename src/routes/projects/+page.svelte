@@ -7,7 +7,7 @@
   const CATEGORY_LABELS: Record<string, string> = {
     science:                'Наука',
     tech:                   'Технологии',
-    architecture_and_urban: 'Архитектура и города',
+    architecture_and_urban: 'Архитектура и урбанистика',
     sport:                  'Спорт',
     music:                  'Музыка',
   };
@@ -182,6 +182,11 @@
     margin: 0 0 20px;
     font-size: 28px;
     font-weight: 700;
+  }
+
+  .btn-create:hover {
+    background: var(--accent);
+    color: #fff;
   }
 
   /* --- Filters --- */

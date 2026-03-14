@@ -1,0 +1,200 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import { getUser, getUserProjects, type UserProfile, type Project } from '$lib/api';
+
+  const CATEGORY_LABELS: Record<string, string> = {
+    science:                'Наука',
+    tech:                   'Технологии',
+    architecture_and_urban: 'Архитектура и урбанистика',
+    sport:                  'Спорт',
+    music:                  'Музыка',
+  };
+
+  let user:     UserProfile | null = null;
+  let projects: Project[]          = [];
+  let errorMsg = '';
+
+  onMount(async () => {
+    const id = $page.params.id;
+    const [userRes, projRes] = await Promise.all([getUser(id), getUserProjects(id)]);
+
+    if ('code' in userRes) {
+      console.error('[getUser]', userRes.code, userRes.message);
+      errorMsg = userRes.code === 'user_not_found'
+        ? 'Пользователь не найден.'
+        : 'Не удалось загрузить профиль.';
+    } else {
+      user = userRes;
+    }
+
+    if (!('code' in projRes)) {
+      projects = projRes;
+    }
+  });
+</script>
+
+<svelte:head>
+  <title>{user ? user.displayName : 'Профиль'}</title>
+</svelte:head>
+
+<div class="page">
+  {#if errorMsg}
+    <p class="error">{errorMsg}</p>
+  {:else if !user}
+    <p class="muted">Загрузка...</p>
+  {:else}
+    <div class="profile">
+      <div class="avatar">
+        {#if user.avatarUrl}
+          <img src={user.avatarUrl} alt={user.displayName} />
+        {:else}
+          <span>{user.displayName.charAt(0).toUpperCase()}</span>
+        {/if}
+      </div>
+      <div class="info">
+        <h1>{user.displayName}</h1>
+        <p class="username">@{user.username}</p>
+        {#if user.description}
+          <p class="bio">{user.description}</p>
+        {/if}
+      </div>
+    </div>
+
+    <section class="projects-section">
+      <h2>Проекты</h2>
+      {#if projects.length === 0}
+        <p class="muted">Нет публичных проектов.</p>
+      {:else}
+        <ul class="list">
+          {#each projects as project}
+            <li>
+              <a class="project-item" href="/projects/{project.id}">
+                <span class="project-name">{project.name}</span>
+                <span class="project-cat">{CATEGORY_LABELS[project.category] ?? project.category}</span>
+              </a>
+            </li>
+          {/each}
+        </ul>
+      {/if}
+    </section>
+  {/if}
+</div>
+
+<style>
+  .page {
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+  }
+
+  .profile {
+    display: flex;
+    gap: 28px;
+    align-items: flex-start;
+    padding: 28px;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+  }
+
+  .avatar {
+    width: 88px;
+    height: 88px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 34px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding-top: 4px;
+  }
+
+  h1 {
+    margin: 0;
+    font-size: 26px;
+    font-weight: 700;
+  }
+
+  .username {
+    margin: 0;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .bio {
+    margin: 10px 0 0;
+    font-size: 15px;
+    color: var(--text-main);
+    line-height: 1.5;
+    white-space: pre-wrap;
+  }
+
+  .projects-section h2 {
+    margin: 0 0 14px;
+    font-size: 18px;
+    font-weight: 700;
+  }
+
+  .list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .project-item {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 12px 14px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .project-item:hover {
+    border-color: var(--accent);
+  }
+
+  .project-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .project-cat {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .muted {
+    color: var(--text-muted);
+    font-size: 14px;
+  }
+
+  .error {
+    color: #e05252;
+    font-size: 14px;
+  }
+</style>

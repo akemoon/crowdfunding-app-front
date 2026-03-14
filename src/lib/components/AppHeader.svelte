@@ -56,6 +56,8 @@
       <a class="nav-link" href="/projects">Проекты</a>
     {/if}
 
+    <a class="btn-create" href={isAuth ? '/projects/new' : '/signin'}>+ Создать проект</a>
+
     {#if isAuth}
       <div class="user-menu">
         <button class="btn-account" on:click={toggleDropdown}>
@@ -106,6 +108,23 @@
 
   .brand:hover {
     color: var(--accent);
+  }
+
+  /* --- Создать проект button --- */
+
+  .btn-create {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .btn-create:hover {
+    opacity: 0.88;
   }
 
   /* --- Войти button --- */

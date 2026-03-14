@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getProject, contribute, type Project } from '$lib/api';
+  import { getProject, getUser, contribute, type Project, type UserProfile } from '$lib/api';
 
   const CATEGORY_LABELS: Record<string, string> = {
     science:                'Наука',
     tech:                   'Технологии',
-    architecture_and_urban: 'Архитектура и города',
+    architecture_and_urban: 'Архитектура и урбанистика',
     sport:                  'Спорт',
     music:                  'Музыка',
   };
@@ -23,6 +23,7 @@
   };
 
   let project: Project | null = null;
+  let author:  UserProfile | null = null;
   let errorMsg = '';
 
   // Contribution form state
@@ -41,6 +42,10 @@
         : 'Не удалось загрузить проект.';
     } else {
       project = result;
+      // Fetch author in parallel -- not blocking, page renders without it
+      getUser(result.userID).then((u) => {
+        if (!('code' in u)) author = u;
+      });
     }
   });
 
@@ -111,6 +116,22 @@
 
     {#if project.description}
       <p class="description">{project.description}</p>
+    {/if}
+
+    {#if author}
+      <a class="author" href="/users/{project.userID}">
+        <div class="author-avatar">
+          {#if author.avatarUrl}
+            <img src={author.avatarUrl} alt={author.displayName} />
+          {:else}
+            <span>{author.displayName.charAt(0).toUpperCase()}</span>
+          {/if}
+        </div>
+        <div class="author-info">
+          <span class="author-name">{author.displayName}</span>
+          <span class="author-username">@{author.username}</span>
+        </div>
+      </a>
     {/if}
 
     <div class="funding">
@@ -213,6 +234,63 @@
     color: var(--text-main);
     line-height: 1.6;
     white-space: pre-wrap;
+  }
+
+  /* --- Author --- */
+
+  .author {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 28px;
+    padding: 14px 16px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .author:hover {
+    border-color: var(--accent);
+  }
+
+  .author-avatar {
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--text-muted);
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  .author-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .author-info {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .author-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .author-username {
+    font-size: 13px;
+    color: var(--text-muted);
   }
 
   /* --- Funding block --- */

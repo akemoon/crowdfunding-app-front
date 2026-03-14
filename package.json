@@ -18,5 +18,8 @@
     "svelte-check": "latest",
     "typescript": "latest",
     "vite": "latest"
+  },
+  "dependencies": {
+    "chart.js": "^4.5.1"
   }
 }
