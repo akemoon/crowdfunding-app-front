@@ -136,6 +136,12 @@
     buildChart();
   }
 
+  function daysLeft(startedAt: string, durationDays: number): number {
+    const end = new Date(startedAt);
+    end.setDate(end.getDate() + durationDays);
+    return Math.ceil((end.getTime() - Date.now()) / 86400000);
+  }
+
   function formatAmount(amount: number, currency: string): string {
     const sym = CURRENCY_SYMBOL[currency] ?? currency;
     return `${amount.toLocaleString('ru-RU')} ${sym}`;
@@ -233,10 +239,22 @@
           <span class="label">Цель</span>
           <span>{formatAmount(project.goalAmount, project.currency)}</span>
         </div>
+        {#if project.startedAt}
+          <div class="meta-row">
+            <span class="label">Начало</span>
+            <span>{new Date(project.startedAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+          </div>
+        {/if}
         <div class="meta-row">
           <span class="label">Длительность</span>
           <span>{project.durationDays} дн.</span>
         </div>
+        {#if project.startedAt && daysLeft(project.startedAt, project.durationDays) > 0}
+          <div class="meta-row">
+            <span class="label">Осталось</span>
+            <span>{daysLeft(project.startedAt, project.durationDays)} дн.</span>
+          </div>
+        {/if}
         <p class="description">{project.description}</p>
       </div>
 

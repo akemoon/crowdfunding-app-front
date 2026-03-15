@@ -83,6 +83,12 @@
     }
   }
 
+  function daysLeft(startedAt: string, durationDays: number): number {
+    const end = new Date(startedAt);
+    end.setDate(end.getDate() + durationDays);
+    return Math.ceil((end.getTime() - Date.now()) / 86400000);
+  }
+
   function formatDate(iso: string): string {
     return new Date(iso).toLocaleDateString('ru-RU', {
       day:   'numeric',
@@ -156,6 +162,12 @@
         <span class="detail-label">Длительность</span>
         <span class="detail-value">{project.durationDays} дн.</span>
       </div>
+      {#if project.startedAt && daysLeft(project.startedAt, project.durationDays) > 0}
+        <div class="detail-row">
+          <span class="detail-label">Осталось</span>
+          <span class="detail-value">{daysLeft(project.startedAt, project.durationDays)} дн.</span>
+        </div>
+      {/if}
     </div>
 
     <div class="contribute-block">
