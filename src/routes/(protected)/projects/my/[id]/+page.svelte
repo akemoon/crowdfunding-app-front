@@ -201,6 +201,8 @@
 </svelte:head>
 
 <div class="page">
+  <a class="back" href="/projects/my">← Мои проекты</a>
+
   {#if errorMsg}
     <p class="error">{errorMsg}</p>
   {:else if !project}
@@ -719,6 +721,18 @@
   .boost-sub {
     font-size: 14px;
     color: var(--text-muted);
+  }
+
+  .back {
+    display: inline-block;
+    margin-bottom: 24px;
+    font-size: 14px;
+    color: var(--text-muted);
+    text-decoration: none;
+  }
+
+  .back:hover {
+    color: var(--accent);
   }
 
   .error {
