@@ -118,7 +118,9 @@ export interface Project {
   currentAmount: number;
   startedAt:     string;
   durationDays:  number;
+  status:        'review' | 'active' | 'finished';
   isBoosted:     boolean;
+  boostedUntil:  string | null;
 }
 
 export interface GetProjectsParams {
@@ -165,6 +167,30 @@ export async function getProjectStats(accessToken: string, projectID: string): P
     headers: { Authorization: `Bearer ${accessToken}` },
   });
   if (res.status === 200) return res.json() as Promise<ProjectStats>;
+  return parseError(res);
+}
+
+export interface Payout {
+  projectID: string;
+  createdAt: string;
+}
+
+// Returns payout info for the author's project. Returns ApiError with code payout_not_found if not yet paid out.
+export async function getPayout(accessToken: string, projectID: string): Promise<Payout | ApiError> {
+  const res = await fetch(`${BASE}/payments/payouts/${encodeURIComponent(projectID)}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (res.status === 200) return res.json() as Promise<Payout>;
+  return parseError(res);
+}
+
+export async function boostProject(accessToken: string, projectID: string, promoCode: string): Promise<ApiError | null> {
+  const res = await fetch(`${BASE}/projects/${encodeURIComponent(projectID)}/boost`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    body: JSON.stringify({ promoCode }),
+  });
+  if (res.status === 200) return null;
   return parseError(res);
 }
 

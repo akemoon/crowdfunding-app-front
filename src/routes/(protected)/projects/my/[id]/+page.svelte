@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { page } from '$app/stores';
-  import { getProject, getMyApplication, getProjectStats, type Project, type Application, type ProjectStats } from '$lib/api';
+  import { page } from '$app/state';
+  import { getProject, getMyApplication, getProjectStats, getPayout, boostProject, type Project, type Application, type ProjectStats, type Payout } from '$lib/api';
   import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Filler } from 'chart.js';
 
   // TODO: add a chart constructor (like Grafana) so the author can pick which charts to show
@@ -34,18 +34,51 @@
     rejected: 'Отклонена',
   };
 
-  type Tab = 'project' | 'application' | 'stats';
+  type Tab = 'project' | 'application' | 'stats' | 'payout' | 'boost';
   let activeTab: Tab = 'project';
+
+  // Boost tab state
+  let promoCode = '';
+  let boostError = '';
+  let boostSuccess = false;
+  let boostLoading = false;
+
+  const BOOST_ERRORS: Record<string, string> = {
+    promo_code_access_denied: 'Промокод недействителен.',
+    promo_code_not_found:     'Промокод не найден.',
+    promo_code_already_used:  'Промокод уже был использован.',
+    project_not_found:        'Проект не найден.',
+  };
+
+  async function submitBoost() {
+    boostError = '';
+    if (!/^[a-z0-9]{10}$/.test(promoCode)) {
+      boostError = 'Промокод: 10 символов, только строчные буквы и цифры.';
+      return;
+    }
+    boostLoading = true;
+    const err = await boostProject(token, project!.id, promoCode);
+    boostLoading = false;
+    if (err) {
+      boostError = BOOST_ERRORS[err.code] ?? 'Не удалось применить промокод.';
+      console.error('[boostProject]', err.code, err.message);
+    } else {
+      boostSuccess = true;
+      promoCode = '';
+    }
+  }
 
   let project:     Project | null      = null;
   let application: Application | null  = null;
   let stats:       ProjectStats | null = null;
+  let payout:      Payout | null       = null;
+  let payoutLoaded = false;
   let errorMsg = '';
 
   // Chart state
   type Range = '7d' | '30d' | '90d';
   let range: Range = '7d';
-  let canvasEl: HTMLCanvasElement;
+  let canvasEl: HTMLCanvasElement | undefined;
   let chart: Chart | null = null;
 
   // Mock data generator -- replace with real API call when payment service is ready
@@ -116,7 +149,7 @@
   let token = '';
 
   onMount(async () => {
-    const id = $page.params.id;
+    const id = page.params.id ?? '';
     token = localStorage.getItem('accessToken') ?? '';
     const [projRes, appRes] = await Promise.all([
       getProject(id, token),
@@ -148,6 +181,18 @@
     }
   }
 
+  async function switchToPayout() {
+    activeTab = 'payout';
+    if (payoutLoaded || !project) return;
+    payoutLoaded = true;
+    const res = await getPayout(token, project.id);
+    if (!('code' in res)) {
+      payout = res;
+    } else if (res.code !== 'payout_not_found') {
+      console.error('[getPayout]', res.code, res.message);
+    }
+  }
+
   onDestroy(() => { if (chart) chart.destroy(); });
 </script>
 
@@ -170,6 +215,10 @@
       <button class:active={activeTab === 'project'}     on:click={() => activeTab = 'project'}>Проект</button>
       <button class:active={activeTab === 'application'} on:click={() => activeTab = 'application'}>Заявка</button>
       <button class:active={activeTab === 'stats'}       on:click={switchToStats}>Статистика</button>
+      <button class:active={activeTab === 'payout'}      on:click={switchToPayout}>Выплата</button>
+      {#if project.status !== 'finished'}
+        <button class:active={activeTab === 'boost'} on:click={() => activeTab = 'boost'}>Буст</button>
+      {/if}
     </nav>
 
     {#if activeTab === 'project'}
@@ -253,6 +302,57 @@
           <canvas bind:this={canvasEl}></canvas>
         </div>
         -->
+      </div>
+
+    {:else if activeTab === 'payout'}
+      <div class="tab-content">
+        {#if !payoutLoaded}
+          <p class="muted">Загрузка...</p>
+        {:else if payout}
+          <div class="payout-card">
+            <div class="payout-icon">✔</div>
+            <div class="payout-info">
+              <span class="payout-title">Выплата произведена</span>
+              <span class="payout-date">{new Date(payout.createdAt).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</span>
+            </div>
+          </div>
+        {:else}
+          <p class="muted">Выплата ещё не произведена.</p>
+        {/if}
+      </div>
+    {:else if activeTab === 'boost'}
+      <div class="tab-content">
+        {#if project.isBoosted && project.boostedUntil}
+          <p class="boost-until">Буст до {new Date(project.boostedUntil).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+        {/if}
+
+        {#if boostSuccess}
+          <div class="boost-success">
+            <div class="boost-icon">✔</div>
+            <div class="boost-info">
+              <span class="boost-title">Буст применён</span>
+              <span class="boost-sub">Проект отмечен как продвигаемый.</span>
+            </div>
+          </div>
+        {:else}
+          <p class="boost-hint">Введите промокод, чтобы продвинуть проект. Промокод действует однократно.</p>
+          <form class="boost-form" on:submit|preventDefault={submitBoost}>
+            <input
+              class="boost-input"
+              type="text"
+              placeholder="промокод"
+              maxlength="10"
+              bind:value={promoCode}
+              disabled={boostLoading}
+            />
+            <button class="boost-btn" type="submit" disabled={boostLoading}>
+              {boostLoading ? 'Применяю...' : 'Применить'}
+            </button>
+          </form>
+          {#if boostError}
+            <p class="boost-error">{boostError}</p>
+          {/if}
+        {/if}
       </div>
     {/if}
   {/if}
@@ -475,25 +575,150 @@
     gap: 4px;
   }
 
-  .range-btns button {
-    background: none;
-    border: 1px solid var(--line);
-    border-radius: 6px;
-    padding: 4px 12px;
-    font-size: 13px;
-    cursor: pointer;
-    color: var(--text-muted);
-  }
-
-  .range-btns button.active {
-    border-color: var(--accent);
-    color: var(--accent);
-    font-weight: 600;
-  }
 
   .chart-wrap {
     height: 260px;
     position: relative;
+  }
+
+  /* Payout tab */
+
+  .payout-card {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 24px;
+    border: 1px solid #4caf50;
+    border-radius: 12px;
+  }
+
+  .payout-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: #4caf50;
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .payout-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .payout-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .payout-date {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  /* Boost tab */
+
+  .boost-hint {
+    margin: 0 0 20px;
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .boost-form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .boost-input {
+    font-size: 15px;
+    padding: 9px 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    outline: none;
+    letter-spacing: 0.05em;
+    width: 200px;
+    font-family: monospace;
+  }
+
+  .boost-input:focus {
+    border-color: var(--accent);
+  }
+
+  .boost-btn {
+    padding: 9px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  .boost-btn:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .boost-error {
+    margin: 12px 0 0;
+    font-size: 14px;
+    color: #e05050;
+  }
+
+  .boost-until {
+    margin: 0 0 20px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+  }
+
+  .boost-success {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    padding: 20px 24px;
+    border: 1px solid #4caf50;
+    border-radius: 12px;
+  }
+
+  .boost-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .boost-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .boost-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-main);
+  }
+
+  .boost-sub {
+    font-size: 14px;
+    color: var(--text-muted);
   }
 
   .error {
