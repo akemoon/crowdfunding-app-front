@@ -24,6 +24,45 @@ export interface SigninTokens {
   refreshToken: string;
 }
 
+function clearAuth() {
+  localStorage.removeItem('accessToken');
+  localStorage.removeItem('refreshToken');
+  window.location.href = '/signin';
+}
+
+// Fetch with automatic token refresh on 401.
+// On refresh failure -> clears auth and redirects to /signin.
+async function authFetch(url: string, options: RequestInit, accessToken: string): Promise<Response> {
+  const res = await fetch(url, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${accessToken}` },
+  });
+
+  if (res.status !== 401) return res;
+
+  const refreshToken = localStorage.getItem('refreshToken');
+  if (!refreshToken) { clearAuth(); return res; }
+
+  const refreshRes = await fetch(`${BASE}/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+
+  if (refreshRes.status === 401) { clearAuth(); return res; }
+  if (refreshRes.status !== 200) return res;
+
+  const tokens: SigninTokens = await refreshRes.json();
+  localStorage.setItem('accessToken', tokens.accessToken);
+  localStorage.setItem('refreshToken', tokens.refreshToken);
+
+  // Retry original request with new token
+  return fetch(url, {
+    ...options,
+    headers: { ...options.headers, Authorization: `Bearer ${tokens.accessToken}` },
+  });
+}
+
 async function parseError(res: Response): Promise<ApiError> {
   try {
     return await res.json();
@@ -73,9 +112,7 @@ export async function getUser(id: string): Promise<UserProfile | ApiError> {
 
 // Returns user profile on success, ApiError otherwise
 export async function getMe(accessToken: string): Promise<UserProfile | ApiError> {
-  const res = await fetch(`${BASE}/users/me`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await authFetch(`${BASE}/users/me`, {}, accessToken);
   if (res.status === 200) return res.json() as Promise<UserProfile>;
   return parseError(res);
 }
@@ -91,14 +128,11 @@ export async function updateMe(
   accessToken: string,
   payload: UpdateProfilePayload,
 ): Promise<UserProfile | ApiError> {
-  const res = await fetch(`${BASE}/users/me`, {
+  const res = await authFetch(`${BASE}/users/me`, {
     method: 'PATCH',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  });
+  }, accessToken);
   if (res.status === 200) return res.json() as Promise<UserProfile>;
   return parseError(res);
 }
@@ -163,9 +197,7 @@ export interface ProjectStats {
 
 // Returns payment stats for the author's project (403 if not the author)
 export async function getProjectStats(accessToken: string, projectID: string): Promise<ProjectStats | ApiError> {
-  const res = await fetch(`${BASE}/payments/stats/project/${encodeURIComponent(projectID)}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await authFetch(`${BASE}/payments/stats/project/${encodeURIComponent(projectID)}`, {}, accessToken);
   if (res.status === 200) return res.json() as Promise<ProjectStats>;
   return parseError(res);
 }
@@ -177,19 +209,17 @@ export interface Payout {
 
 // Returns payout info for the author's project. Returns ApiError with code payout_not_found if not yet paid out.
 export async function getPayout(accessToken: string, projectID: string): Promise<Payout | ApiError> {
-  const res = await fetch(`${BASE}/payments/payouts/${encodeURIComponent(projectID)}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await authFetch(`${BASE}/payments/payouts/${encodeURIComponent(projectID)}`, {}, accessToken);
   if (res.status === 200) return res.json() as Promise<Payout>;
   return parseError(res);
 }
 
 export async function boostProject(accessToken: string, projectID: string, promoCode: string): Promise<ApiError | null> {
-  const res = await fetch(`${BASE}/projects/${encodeURIComponent(projectID)}/boost`, {
+  const res = await authFetch(`${BASE}/projects/${encodeURIComponent(projectID)}/boost`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ promoCode }),
-  });
+  }, accessToken);
   if (res.status === 200) return null;
   return parseError(res);
 }
@@ -204,23 +234,18 @@ export async function contribute(
   accessToken: string,
   payload: ContributePayload,
 ): Promise<ApiError | null> {
-  const res = await fetch(`${BASE}/payments/contribute`, {
+  const res = await authFetch(`${BASE}/payments/contribute`, {
     method: 'POST',
-    headers: {
-      'Content-Type':  'application/json',
-      Authorization:   `Bearer ${accessToken}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  });
+  }, accessToken);
   if (res.status === 204) return null;
   return parseError(res);
 }
 
 // Returns the current user's own projects (including review status)
 export async function getMyProjects(accessToken: string): Promise<Project[] | ApiError> {
-  const res = await fetch(`${BASE}/projects/user`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await authFetch(`${BASE}/projects/user`, {}, accessToken);
   if (res.status === 200) {
     const data = await res.json();
     return (data as Project[]) ?? [];
@@ -260,14 +285,11 @@ export async function createProject(
   accessToken: string,
   payload: CreateProjectPayload,
 ): Promise<ApiError | null> {
-  const res = await fetch(`${BASE}/projects`, {
+  const res = await authFetch(`${BASE}/projects`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization:  `Bearer ${accessToken}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
-  });
+  }, accessToken);
   if (res.status === 201) return null;
   return parseError(res);
 }
@@ -294,9 +316,7 @@ export async function getMyApplication(
   accessToken: string,
   projectID: string,
 ): Promise<Application | ApiError> {
-  const res = await fetch(`${BASE}/applications/project/${encodeURIComponent(projectID)}`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await authFetch(`${BASE}/applications/project/${encodeURIComponent(projectID)}`, {}, accessToken);
   if (res.status === 200) return res.json() as Promise<Application>;
   return parseError(res);
 }
@@ -305,9 +325,7 @@ export async function getMyApplication(
 export async function getApplications(
   accessToken: string,
 ): Promise<ModeratorApplication[] | ApiError> {
-  const res = await fetch(`${BASE}/applications`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await authFetch(`${BASE}/applications`, {}, accessToken);
   if (res.status === 200) {
     const data = await res.json();
     return (data as ModeratorApplication[]) ?? [];
@@ -319,9 +337,7 @@ export async function getApplications(
 export async function getMyApplications(
   accessToken: string,
 ): Promise<ModeratorApplication[] | ApiError> {
-  const res = await fetch(`${BASE}/applications/moderator`, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  const res = await authFetch(`${BASE}/applications/moderator`, {}, accessToken);
   if (res.status === 200) {
     const data = await res.json();
     return (data as ModeratorApplication[]) ?? [];
@@ -334,10 +350,9 @@ export async function takeApplication(
   accessToken: string,
   projectID: string,
 ): Promise<ApiError | null> {
-  const res = await fetch(`${BASE}/applications/${encodeURIComponent(projectID)}/take`, {
+  const res = await authFetch(`${BASE}/applications/${encodeURIComponent(projectID)}/take`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  }, accessToken);
   if (res.status === 200) return null;
   return parseError(res);
 }
@@ -347,10 +362,9 @@ export async function approveApplication(
   accessToken: string,
   projectID: string,
 ): Promise<ApiError | null> {
-  const res = await fetch(`${BASE}/applications/${encodeURIComponent(projectID)}/approve`, {
+  const res = await authFetch(`${BASE}/applications/${encodeURIComponent(projectID)}/approve`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  }, accessToken);
   if (res.status === 200) return null;
   return parseError(res);
 }
@@ -361,14 +375,11 @@ export async function rejectApplication(
   projectID: string,
   reason: string,
 ): Promise<ApiError | null> {
-  const res = await fetch(`${BASE}/applications/${encodeURIComponent(projectID)}/reject`, {
+  const res = await authFetch(`${BASE}/applications/${encodeURIComponent(projectID)}/reject`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization:  `Bearer ${accessToken}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
-  });
+  }, accessToken);
   if (res.status === 200) return null;
   return parseError(res);
 }
