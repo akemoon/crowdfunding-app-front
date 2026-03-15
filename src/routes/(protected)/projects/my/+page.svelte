@@ -38,7 +38,10 @@
 </svelte:head>
 
 <div class="page">
-  <h1>Мои проекты</h1>
+  <div class="header">
+    <h1>Мои проекты</h1>
+    <a class="btn-create" href="/projects/new">+ Создать проект</a>
+  </div>
 
   {#if loading}
     <p class="muted">Загрузка...</p>
@@ -70,10 +73,31 @@
     max-width: 720px;
   }
 
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 24px;
+  }
+
   h1 {
-    margin: 0 0 24px;
+    margin: 0;
     font-size: 28px;
     font-weight: 700;
+  }
+
+  .btn-create {
+    padding: 8px 18px;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+  }
+
+  .btn-create:hover {
+    opacity: 0.88;
   }
 
   .list {
