@@ -43,7 +43,7 @@ async function authFetch(url: string, options: RequestInit, accessToken: string)
   const refreshToken = localStorage.getItem('refreshToken');
   if (!refreshToken) { clearAuth(); return res; }
 
-  const refreshRes = await fetch(`${BASE}/refresh`, {
+  const refreshRes = await fetch(`${BASE}/auth/refresh`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ refreshToken }),
@@ -73,7 +73,7 @@ async function parseError(res: Response): Promise<ApiError> {
 
 // Returns tokens on success, ApiError otherwise
 export async function signin(payload: SigninPayload): Promise<SigninTokens | ApiError> {
-  const res = await fetch(`${BASE}/signin`, {
+  const res = await fetch(`${BASE}/auth/signin`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -84,10 +84,10 @@ export async function signin(payload: SigninPayload): Promise<SigninTokens | Api
 }
 
 // Returns null on success, ApiError otherwise
-export async function signout(refreshToken: string): Promise<ApiError | null> {
-  const res = await fetch(`${BASE}/signout`, {
+export async function signout(accessToken: string, refreshToken: string): Promise<ApiError | null> {
+  const res = await fetch(`${BASE}/auth/signout`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${accessToken}` },
     body: JSON.stringify({ refreshToken }),
   });
 
@@ -128,7 +128,7 @@ export async function updateMe(
   accessToken: string,
   payload: UpdateProfilePayload,
 ): Promise<UserProfile | ApiError> {
-  const res = await authFetch(`${BASE}/users/me`, {
+  const res = await authFetch(`${BASE}/users/me/profile`, {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
@@ -386,7 +386,7 @@ export async function rejectApplication(
 
 // Returns null on success, ApiError otherwise
 export async function signup(payload: SignupPayload): Promise<ApiError | null> {
-  const res = await fetch(`${BASE}/signup`, {
+  const res = await fetch(`${BASE}/auth/signup`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),

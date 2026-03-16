@@ -27,9 +27,6 @@
   let toasts: ToastItem[] = [];
   let toastComponent: Toast;
 
-  // Track IDs that were "taken" by someone else for conflict simulation
-  let conflictIds = new Set<string>();
-
   onMount(async () => {
     const token = localStorage.getItem('accessToken') ?? '';
     const [poolRes, mineRes] = await Promise.all([
@@ -48,19 +45,8 @@
     }
   });
 
-  function simulateConflict(id: string) {
-    conflictIds.add(id);
-  }
-
   async function assign(app: ModeratorApplication) {
     const id = app.project.id;
-
-    if (conflictIds.has(id)) {
-      toastComponent.show('Заявка недоступна', 'error');
-      pool = pool.filter(a => a.project.id !== id);
-      return;
-    }
-
     const token = localStorage.getItem('accessToken') ?? '';
     const result = await takeApplication(token, id);
 
@@ -75,7 +61,6 @@
       return;
     }
 
-    conflictIds.add(id);
     pool = pool.filter(a => a.project.id !== id);
     mine = [...mine, app];
     toastComponent.show('Заявка взята в работу', 'success');
@@ -128,9 +113,6 @@
               </span>
             </div>
             <div class="item-actions">
-              <button class="btn-sim" on:click={() => simulateConflict(app.project.id)}>
-                [тест: занять]
-              </button>
               <button class="btn-assign" on:click={() => assign(app)}>
                 Взять в работу
               </button>

@@ -7,19 +7,9 @@
   // Checked on mount (client-only: localStorage is not available during SSR)
   let isAuth = false;
   let dropdownOpen = false;
-  let displayName = '';
 
-  onMount(async () => {
-    const token = localStorage.getItem('accessToken');
-    if (!token) return;
-    isAuth = true;
-
-    const result = await getMe(token);
-    if ('code' in result) {
-      console.error('[me]', result.code, result.message);
-    } else {
-      displayName = result.displayName;
-    }
+  onMount(() => {
+    isAuth = !!localStorage.getItem('accessToken');
   });
 
   function toggleDropdown() {
@@ -27,9 +17,10 @@
   }
 
   async function signout() {
+    const accessToken  = localStorage.getItem('accessToken')  ?? '';
     const refreshToken = localStorage.getItem('refreshToken') ?? '';
     // Fire-and-forget: clear session locally regardless of API response
-    apiSignout(refreshToken);
+    apiSignout(accessToken, refreshToken);
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     isAuth = false;
@@ -59,7 +50,7 @@
     {#if isAuth}
       <div class="user-menu">
         <button class="btn-account" on:click={toggleDropdown}>
-          {displayName || 'Аккаунт'} <span class="chevron">▾</span>
+          Аккаунт <span class="chevron">▾</span>
         </button>
         {#if dropdownOpen}
           <div class="dropdown">

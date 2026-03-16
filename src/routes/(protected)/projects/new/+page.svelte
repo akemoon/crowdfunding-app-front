@@ -29,9 +29,33 @@
   let globalError = '';
   let submitting = false;
 
+  const VALID_CURRENCIES  = ['RUB', 'USD'];
+  const VALID_CATEGORIES  = ['science', 'tech', 'architecture_and_urban', 'sport', 'music'];
+
+  function validate(): boolean {
+    const errors: Record<string, string> = {};
+    if (form.name.length < 1 || form.name.length > 100)
+      errors.name = 'Некорректная длина названия';
+    if (form.description.length > 1000)
+      errors.description = 'Некорректная длина описания';
+    const goal = parseInt(form.goalAmount, 10);
+    if (isNaN(goal) || goal < 1)
+      errors.goalAmount = 'Некорректная сумма цели';
+    const days = parseInt(form.durationDays, 10);
+    if (isNaN(days) || days < 1 || days > 60)
+      errors.durationDays = 'Некорректная длительность';
+    if (!VALID_CURRENCIES.includes(form.currency))
+      errors.currency = 'Неизвестная валюта';
+    if (!VALID_CATEGORIES.includes(form.category))
+      errors.category = 'Неизвестная категория';
+    fieldErrors = errors;
+    return Object.keys(errors).length === 0;
+  }
+
   async function submit() {
     fieldErrors  = {};
     globalError  = '';
+    if (!validate()) return;
     submitting   = true;
 
     const token = localStorage.getItem('accessToken') ?? '';
