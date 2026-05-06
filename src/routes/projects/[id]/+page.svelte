@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import { getProject, getUser, contribute, type Project, type UserProfile } from '$lib/api';
+  import ProjectImages from '$lib/components/ProjectImages.svelte';
 
   const CATEGORY_LABELS: Record<string, string> = {
     science:                'Наука',
@@ -119,6 +120,12 @@
         {/if}
       </div>
     </div>
+
+    {#if project.images && project.images.length > 0}
+      <div class="images-wrap">
+        <ProjectImages images={project.images} />
+      </div>
+    {/if}
 
     {#if project.description}
       <p class="description">{project.description}</p>
@@ -238,6 +245,10 @@
     font-size: 13px;
     font-weight: 600;
     color: var(--accent);
+  }
+
+  .images-wrap {
+    margin-bottom: 24px;
   }
 
   .description {

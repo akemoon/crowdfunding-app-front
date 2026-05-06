@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { createProject } from '$lib/api';
+  import { createProject, uploadProjectImage, type ApiError } from '$lib/api';
 
   const CATEGORIES = [
     { value: 'science',                label: 'Наука' },
@@ -24,13 +24,56 @@
     durationDays: '',
   };
 
-  // Per-field validation errors from backend
   let fieldErrors: Record<string, string> = {};
   let globalError = '';
   let submitting = false;
 
-  const VALID_CURRENCIES  = ['RUB', 'USD'];
-  const VALID_CATEGORIES  = ['science', 'tech', 'architecture_and_urban', 'sport', 'music'];
+  // Selected image files + local preview URLs
+  interface Preview {
+    file: File;
+    url:  string;
+  }
+  let previews: Preview[] = [];
+  let dragOver = false;
+  let fileInput: HTMLInputElement;
+
+  const ACCEPTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+  function addFiles(files: FileList | File[]) {
+    for (const file of Array.from(files)) {
+      if (!ACCEPTED.includes(file.type)) continue;
+      previews = [...previews, { file, url: URL.createObjectURL(file) }];
+    }
+  }
+
+  function removePreview(index: number) {
+    URL.revokeObjectURL(previews[index].url);
+    previews = previews.filter((_, i) => i !== index);
+  }
+
+  function onFileInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (input.files) addFiles(input.files);
+    input.value = '';
+  }
+
+  function onDragOver(e: DragEvent) {
+    e.preventDefault();
+    dragOver = true;
+  }
+
+  function onDragLeave() {
+    dragOver = false;
+  }
+
+  function onDrop(e: DragEvent) {
+    e.preventDefault();
+    dragOver = false;
+    if (e.dataTransfer?.files) addFiles(e.dataTransfer.files);
+  }
+
+  const VALID_CURRENCIES = ['RUB', 'USD'];
+  const VALID_CATEGORIES = ['science', 'tech', 'architecture_and_urban', 'sport', 'music'];
 
   function validate(): boolean {
     const errors: Record<string, string> = {};
@@ -53,10 +96,10 @@
   }
 
   async function submit() {
-    fieldErrors  = {};
-    globalError  = '';
+    fieldErrors = {};
+    globalError = '';
     if (!validate()) return;
-    submitting   = true;
+    submitting = true;
 
     const token = localStorage.getItem('accessToken') ?? '';
     const result = await createProject(token, {
@@ -68,20 +111,33 @@
       durationDays: parseInt(form.durationDays, 10),
     });
 
-    submitting = false;
-
-    if (result === null) {
-      goto('/projects/my');
+    if ('code' in result) {
+      submitting = false;
+      const err = result as ApiError;
+      console.error('[createProject]', err.code, err.message);
+      if (err.code === 'validation_error' && err.fields) {
+        fieldErrors = err.fields;
+      } else {
+        globalError = CREATE_ERRORS[err.code] ?? 'Произошла ошибка. Попробуйте позже.';
+      }
       return;
     }
 
-    console.error('[createProject]', result.code, result.message);
+    const projectID = result.id;
 
-    if (result.code === 'validation_error' && result.fields) {
-      fieldErrors = result.fields;
-    } else {
-      globalError = CREATE_ERRORS[result.code] ?? 'Произошла ошибка. Попробуйте позже.';
+    // Upload images in parallel, collect errors
+    if (previews.length > 0) {
+      const uploads = await Promise.all(
+        previews.map(p => uploadProjectImage(token, projectID, p.file))
+      );
+      const failed = uploads.filter(r => 'code' in r).length;
+      if (failed > 0) {
+        console.error(`[uploadProjectImage] ${failed} of ${previews.length} failed`);
+        // Still redirect — project is created, images can be managed later
+      }
     }
+
+    goto(`/projects/my/${projectID}`);
   }
 </script>
 
@@ -141,6 +197,50 @@
         <input id="durationDays" type="number" min="1" max="60" bind:value={form.durationDays} disabled={submitting} />
         {#if fieldErrors.durationDays}<p class="field-error">{fieldErrors.durationDays}</p>{/if}
       </div>
+    </div>
+
+    <!-- Image upload -->
+    <div class="field">
+      <label>Фотографии</label>
+
+      <!-- svelte-ignore a11y-no-static-element-interactions -->
+      <div
+        class="dropzone"
+        class:drag-over={dragOver}
+        on:dragover={onDragOver}
+        on:dragleave={onDragLeave}
+        on:drop={onDrop}
+        on:click={() => fileInput.click()}
+      >
+        <span class="dropzone-text">Перетащите фото сюда или нажмите для выбора</span>
+        <span class="dropzone-hint">JPEG, PNG, GIF, WebP</span>
+      </div>
+
+      <input
+        bind:this={fileInput}
+        type="file"
+        accept="image/jpeg,image/png,image/gif,image/webp"
+        multiple
+        class="file-input-hidden"
+        on:change={onFileInput}
+        disabled={submitting}
+      />
+
+      {#if previews.length > 0}
+        <div class="previews">
+          {#each previews as preview, i (preview.url)}
+            <div class="preview-item">
+              <img src={preview.url} alt="preview" class="preview-img" />
+              <button
+                type="button"
+                class="preview-remove"
+                on:click={() => removePreview(i)}
+                disabled={submitting}
+              >×</button>
+            </div>
+          {/each}
+        </div>
+      {/if}
     </div>
 
     {#if globalError}
@@ -225,6 +325,91 @@
     resize: none;
   }
 
+  /* --- Dropzone --- */
+
+  .dropzone {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 28px 16px;
+    border: 2px dashed var(--line);
+    border-radius: 8px;
+    cursor: pointer;
+    background: #fff;
+  }
+
+  .dropzone.drag-over {
+    border-color: var(--accent);
+    background: var(--soft);
+  }
+
+  .dropzone-text {
+    font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .dropzone-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  .file-input-hidden {
+    display: none;
+  }
+
+  /* --- Previews --- */
+
+  .previews {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+  }
+
+  .preview-item {
+    position: relative;
+    width: 80px;
+    height: 80px;
+    flex-shrink: 0;
+  }
+
+  .preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--line);
+  }
+
+  .preview-remove {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: none;
+    background: #e05252;
+    color: #fff;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .preview-remove:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
+  /* --- Errors --- */
+
   .field-error {
     margin: 0;
     font-size: 13px;
@@ -236,6 +421,8 @@
     font-size: 14px;
     color: #e05252;
   }
+
+  /* --- Submit --- */
 
   .btn-submit {
     justify-self: start;

@@ -141,6 +141,11 @@ export type ProjectStatus   = 'active' | 'finished';
 export type ProjectSort     = 'default' | 'date';
 export type ProjectCategory = 'science' | 'tech' | 'architecture_and_urban' | 'sport' | 'music';
 
+export interface ProjectImage {
+  id:  string;
+  url: string;
+}
+
 export interface Project {
   id:            string;
   userID:        string;
@@ -155,6 +160,7 @@ export interface Project {
   status:        'review' | 'active' | 'finished';
   isBoosted:     boolean;
   boostedUntil:  string | null;
+  images?:       ProjectImage[];
 }
 
 export interface GetProjectsParams {
@@ -265,8 +271,10 @@ export async function getUserProjects(userID: string): Promise<Project[] | ApiEr
 
 // Returns a single project by ID, ApiError otherwise
 export async function getProject(id: string, accessToken?: string): Promise<Project | ApiError> {
-  const headers: HeadersInit = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-  const res = await fetch(`${BASE}/projects/${encodeURIComponent(id)}`, { headers });
+  const url = `${BASE}/projects/${encodeURIComponent(id)}`;
+  const res = accessToken
+    ? await authFetch(url, {}, accessToken)
+    : await fetch(url);
   if (res.status === 200) return res.json() as Promise<Project>;
   return parseError(res);
 }
@@ -280,17 +288,21 @@ export interface CreateProjectPayload {
   durationDays: number;
 }
 
-// Returns null on success, ApiError otherwise
+export interface CreatedProject {
+  id: string;
+}
+
+// Returns created project ID on success, ApiError otherwise
 export async function createProject(
   accessToken: string,
   payload: CreateProjectPayload,
-): Promise<ApiError | null> {
+): Promise<CreatedProject | ApiError> {
   const res = await authFetch(`${BASE}/projects`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }, accessToken);
-  if (res.status === 201) return null;
+  if (res.status === 201) return res.json() as Promise<CreatedProject>;
   return parseError(res);
 }
 
@@ -379,6 +391,89 @@ export async function rejectApplication(
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ reason }),
+  }, accessToken);
+  if (res.status === 200) return null;
+  return parseError(res);
+}
+
+// Upload one image for a project. Returns the created image on success.
+export async function uploadProjectImage(
+  accessToken: string,
+  projectID: string,
+  file: File,
+): Promise<ProjectImage | ApiError> {
+  const body = new FormData();
+  body.append('image', file);
+  const res = await authFetch(`${BASE}/projects/${encodeURIComponent(projectID)}/images`, {
+    method: 'POST',
+    body,
+  }, accessToken);
+  if (res.status === 201) return res.json() as Promise<ProjectImage>;
+  return parseError(res);
+}
+
+// Delete a project image by imageID. Returns null on success.
+export async function deleteProjectImage(
+  accessToken: string,
+  projectID: string,
+  imageID: string,
+): Promise<ApiError | null> {
+  const res = await authFetch(
+    `${BASE}/projects/${encodeURIComponent(projectID)}/images/${encodeURIComponent(imageID)}`,
+    { method: 'DELETE' },
+    accessToken,
+  );
+  if (res.status === 204) return null;
+  return parseError(res);
+}
+
+export interface UserSearchResult {
+  id:          string;
+  username:    string;
+  displayName: string;
+  description: string;
+  avatarUrl:   string;
+}
+
+export interface AdminUserCredentials {
+  userID: string;
+  role:   'user' | 'moder' | 'admin';
+}
+
+export type UserRole = 'user' | 'moder' | 'admin';
+
+// Search users by username (public endpoint)
+export async function searchUsers(
+  q: string,
+  limit: number,
+  offset: number,
+): Promise<UserSearchResult[] | ApiError> {
+  const params = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
+  const res = await fetch(`${BASE}/users/search?${params}`);
+  if (res.status === 200) return res.json() as Promise<UserSearchResult[]>;
+  return parseError(res);
+}
+
+// Get user credentials by ID (admin only)
+export async function getAdminUser(
+  accessToken: string,
+  id: string,
+): Promise<AdminUserCredentials | ApiError> {
+  const res = await authFetch(`${BASE}/auth/users/${encodeURIComponent(id)}`, {}, accessToken);
+  if (res.status === 200) return res.json() as Promise<AdminUserCredentials>;
+  return parseError(res);
+}
+
+// Change user role (admin only). Returns null on success.
+export async function setUserRole(
+  accessToken: string,
+  id: string,
+  role: UserRole,
+): Promise<ApiError | null> {
+  const res = await authFetch(`${BASE}/auth/users/${encodeURIComponent(id)}/role`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ role }),
   }, accessToken);
   if (res.status === 200) return null;
   return parseError(res);

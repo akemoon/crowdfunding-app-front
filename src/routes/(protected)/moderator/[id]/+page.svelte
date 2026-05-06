@@ -3,12 +3,11 @@
   import { page } from '$app/stores';
   import { goto } from '$app/navigation';
   import {
-    getProject, getUser,
+    getUser, getMyApplications,
     approveApplication, rejectApplication,
     type Project, type UserProfile,
   } from '$lib/api';
-  import { currentApplication } from '$lib/stores/moderator';
-  import { get } from 'svelte/store';
+  import ProjectImages from '$lib/components/ProjectImages.svelte';
   import Toast from '$lib/components/Toast.svelte';
   import type { ToastItem } from '$lib/components/Toast.svelte';
 
@@ -40,22 +39,20 @@
   let rejectReason = '';
 
   onMount(async () => {
-    // Use cached application data from the list page if available
-    const cached = get(currentApplication);
-    if (cached && cached.project.id === projectId) {
-      project = cached.project;
-      loadingProject = false;
+    const token = localStorage.getItem('accessToken') ?? '';
+    const appsRes = await getMyApplications(token);
+    loadingProject = false;
+    if ('code' in appsRes) {
+      console.error('[getMyApplications]', appsRes.code, appsRes.message);
+      errorMsg = 'Не удалось загрузить проект.';
       return;
     }
-    // Fallback: direct navigation to this URL
-    const result = await getProject(projectId);
-    loadingProject = false;
-    if ('code' in result) {
-      console.error('[getProject]', result.code, result.message);
-      errorMsg = 'Не удалось загрузить проект.';
-    } else {
-      project = result;
+    const app = appsRes.find(a => a.project.id === projectId);
+    if (!app) {
+      errorMsg = 'Проект не найден.';
+      return;
     }
+    project = app.project;
   });
 
   // Fetch author lazily when switching to author tab
@@ -144,6 +141,12 @@
           <div class="field">
             <span class="label">Описание</span>
             <p class="description">{project.description}</p>
+          </div>
+        {/if}
+        {#if project.images && project.images.length > 0}
+          <div class="field">
+            <span class="label">Фотографии</span>
+            <ProjectImages images={project.images} />
           </div>
         {/if}
       </div>

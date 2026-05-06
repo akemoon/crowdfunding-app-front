@@ -2,11 +2,10 @@
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/state';
   import { getProject, getMyApplication, getProjectStats, getPayout, boostProject, type Project, type Application, type ProjectStats, type Payout } from '$lib/api';
+  import ProjectImages from '$lib/components/ProjectImages.svelte';
   import { Chart, LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Filler } from 'chart.js';
 
   // TODO: add a chart constructor (like Grafana) so the author can pick which charts to show
-
-  Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Filler);
 
   const CATEGORY_LABELS: Record<string, string> = {
     science:                'Наука',
@@ -155,22 +154,24 @@
   let token = '';
 
   onMount(async () => {
+    Chart.register(LineController, LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Filler);
+
     const id = page.params.id ?? '';
     token = localStorage.getItem('accessToken') ?? '';
-    const [projRes, appRes] = await Promise.all([
-      getProject(id, token),
-      getMyApplication(token, id),
-    ]);
 
+    const projRes = await getProject(id, token);
     if ('code' in projRes) {
       console.error('[project]', projRes.code, projRes.message);
       errorMsg = projRes.code === 'project_not_found'
         ? 'Проект не найден.'
         : 'Не удалось загрузить проект.';
-    } else {
-      project = projRes;
+      return;
     }
+    project = projRes;
 
+    // Re-read token in case it was refreshed by getProject
+    token = localStorage.getItem('accessToken') ?? '';
+    const appRes = await getMyApplication(token, id);
     if (!('code' in appRes)) {
       application = appRes;
     }
@@ -256,6 +257,9 @@
           </div>
         {/if}
         <p class="description">{project.description}</p>
+        {#if project.images && project.images.length > 0}
+          <ProjectImages images={project.images} />
+        {/if}
       </div>
 
     {:else if activeTab === 'application'}
