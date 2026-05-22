@@ -117,6 +117,17 @@ export async function getMe(accessToken: string): Promise<UserProfile | ApiError
   return parseError(res);
 }
 
+export interface AuthMe {
+  email: string;
+  role:  'user' | 'moder' | 'admin';
+}
+
+export async function getAuthMe(accessToken: string): Promise<AuthMe | ApiError> {
+  const res = await authFetch(`${BASE}/auth/me`, {}, accessToken);
+  if (res.status === 200) return res.json() as Promise<AuthMe>;
+  return parseError(res);
+}
+
 export interface UpdateProfilePayload {
   username?:    string;
   displayName?: string;
@@ -139,7 +150,7 @@ export async function updateMe(
 
 export type ProjectStatus   = 'active' | 'finished';
 export type ProjectSort     = 'default' | 'date';
-export type ProjectCategory = 'science' | 'tech' | 'architecture_and_urban' | 'sport' | 'music';
+export type ProjectCategory = 'science' | 'tech' | 'architecture_and_urban' | 'sport' | 'music' | 'art' | 'film' | 'games' | 'education' | 'food' | 'fashion' | 'health';
 
 export interface ProjectImage {
   id:  string;
@@ -157,9 +168,10 @@ export interface Project {
   currentAmount: number;
   startedAt:     string;
   durationDays:  number;
-  status:        'review' | 'active' | 'finished';
+  status:        'draft' | 'review' | 'active' | 'finished';
   isBoosted:     boolean;
   boostedUntil:  string | null;
+  coverURL?:     string;
   images?:       ProjectImage[];
 }
 
@@ -306,6 +318,30 @@ export async function createProject(
   return parseError(res);
 }
 
+export interface UpdateProjectPayload {
+  name:         string;
+  description:  string;
+  category:     string;
+  currency:     string;
+  goalAmount:   number;
+  durationDays: number;
+}
+
+// Returns null on success, ApiError otherwise. Only works while project is draft.
+export async function updateProject(
+  accessToken: string,
+  projectID: string,
+  payload: UpdateProjectPayload,
+): Promise<ApiError | null> {
+  const res = await authFetch(`${BASE}/projects/${encodeURIComponent(projectID)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }, accessToken);
+  if (res.status === 200) return null;
+  return parseError(res);
+}
+
 export type ApplicationStatus = 'pending' | 'review' | 'rejected' | 'approved';
 
 export interface Application {
@@ -396,6 +432,20 @@ export async function rejectApplication(
   return parseError(res);
 }
 
+// Submit a draft project for moderation. Returns null on success.
+export async function submitProject(
+  accessToken: string,
+  projectID: string,
+): Promise<ApiError | null> {
+  const res = await authFetch(
+    `${BASE}/projects/${encodeURIComponent(projectID)}/submit`,
+    { method: 'POST' },
+    accessToken,
+  );
+  if (res.status === 200) return null;
+  return parseError(res);
+}
+
 // Upload one image for a project. Returns the created image on success.
 export async function uploadProjectImage(
   accessToken: string,
@@ -409,6 +459,22 @@ export async function uploadProjectImage(
     body,
   }, accessToken);
   if (res.status === 201) return res.json() as Promise<ProjectImage>;
+  return parseError(res);
+}
+
+// Upload cover image for a draft project. Returns coverURL on success.
+export async function uploadProjectCover(
+  accessToken: string,
+  projectID: string,
+  file: File,
+): Promise<{ coverURL: string } | ApiError> {
+  const body = new FormData();
+  body.append('cover', file);
+  const res = await authFetch(`${BASE}/projects/${encodeURIComponent(projectID)}/cover`, {
+    method: 'POST',
+    body,
+  }, accessToken);
+  if (res.status === 200) return res.json() as Promise<{ coverURL: string }>;
   return parseError(res);
 }
 
@@ -436,11 +502,47 @@ export interface UserSearchResult {
 }
 
 export interface AdminUserCredentials {
-  userID: string;
-  role:   'user' | 'moder' | 'admin';
+  userID:    string;
+  email:     string;
+  role:      'user' | 'moder' | 'admin';
+  isBlocked: boolean;
 }
 
 export type UserRole = 'user' | 'moder' | 'admin';
+
+// Set blocked status for a user (admin only). Returns null on success.
+export async function setUserBlocked(
+  accessToken: string,
+  id: string,
+  blocked: boolean,
+): Promise<ApiError | null> {
+  const res = await authFetch(`${BASE}/auth/users/${encodeURIComponent(id)}/blocked`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ blocked }),
+  }, accessToken);
+  if (res.status === 200) return null;
+  return parseError(res);
+}
+
+export interface Promocode {
+  code:        string;
+  type:        string;
+  ownerId:     string;
+  effectValue: number;
+  usedAt:      string | null;
+  createdAt:   string;
+}
+
+// Returns list of promocodes belonging to the current user
+export async function getPromocodes(accessToken: string): Promise<Promocode[] | ApiError> {
+  const res = await authFetch(`${BASE}/promocodes`, {}, accessToken);
+  if (res.status === 200) {
+    const data = await res.json();
+    return (data as Promocode[]) ?? [];
+  }
+  return parseError(res);
+}
 
 // Search users by username (public endpoint)
 export async function searchUsers(

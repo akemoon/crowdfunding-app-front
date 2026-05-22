@@ -17,6 +17,13 @@
     architecture_and_urban: 'Архитектура и урбанистика',
     sport:                  'Спорт',
     music:                  'Музыка',
+    art:                    'Искусство',
+    film:                   'Кино',
+    games:                  'Игры',
+    education:              'Образование',
+    food:                   'Еда',
+    fashion:                'Мода',
+    health:                 'Здоровье',
   };
 
   type Tab = 'project' | 'author';
@@ -95,7 +102,7 @@
       toastComponent.show('Не удалось отклонить заявку.', 'error');
       return;
     }
-    toastComponent.show('Проект отклонён', 'error');
+    toastComponent.show('Проект отклонён', 'success');
     setTimeout(() => goto('/moderator'), 1200);
   }
 </script>
@@ -125,6 +132,9 @@
 
     {#if activeTab === 'project'}
       <div class="section">
+        {#if project.coverURL}
+          <img src={project.coverURL} alt="обложка" class="cover-img" />
+        {/if}
         <div class="field">
           <span class="label">Категория</span>
           <span class="value">{CATEGORY_LABELS[project.category] ?? project.category}</span>
@@ -436,6 +446,14 @@
     font-size: 14px;
     font-family: inherit;
     cursor: pointer;
+  }
+
+  .cover-img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--line);
   }
 
   .muted {

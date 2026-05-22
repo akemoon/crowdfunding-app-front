@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
   import {
-    getUser, getAdminUser, setUserRole,
+    getUser, getAdminUser, setUserRole, setUserBlocked,
     type UserProfile, type AdminUserCredentials, type UserRole,
   } from '$lib/api';
   import Toast from '$lib/components/Toast.svelte';
@@ -28,7 +28,8 @@
   let credentialsError   = '';
 
   let selectedRole: UserRole = 'user';
-  let savingRole = false;
+  let savingRole    = false;
+  let togglingBlock = false;
 
   let toasts: ToastItem[] = [];
   let toastComponent: Toast;
@@ -59,6 +60,22 @@
         selectedRole = res.role;
       }
     }
+  }
+
+  async function toggleBlock() {
+    if (!credentials) return;
+    togglingBlock = true;
+    const token = localStorage.getItem('accessToken') ?? '';
+    const newBlocked = !credentials.isBlocked;
+    const res = await setUserBlocked(token, userID, newBlocked);
+    togglingBlock = false;
+    if (res !== null) {
+      console.error('[setUserBlocked]', res.code, res.message);
+      toastComponent.show(ERROR_MESSAGES[res.code] ?? 'Не удалось изменить статус.', 'error');
+      return;
+    }
+    credentials = { ...credentials, isBlocked: newBlocked };
+    toastComponent.show(newBlocked ? 'Пользователь заблокирован' : 'Пользователь разблокирован', 'success');
   }
 
   async function saveRole() {
@@ -128,6 +145,10 @@
           <p class="error">{credentialsError}</p>
         {:else if credentials}
           <div class="field">
+            <span class="label">Email</span>
+            <span class="field-value">{credentials.email}</span>
+          </div>
+          <div class="field">
             <span class="label">Роль</span>
             <div class="role-row">
               <select class="role-select" bind:value={selectedRole} disabled={savingRole}>
@@ -137,6 +158,24 @@
               </select>
               <button class="btn-save" on:click={saveRole} disabled={savingRole}>
                 {savingRole ? '...' : 'Сохранить'}
+              </button>
+            </div>
+          </div>
+          <div class="field">
+            <span class="label">Блокировка</span>
+            <div class="block-section">
+              <div class="block-status-row">
+                <span class="block-status-label">Статус</span>
+                <span class="block-status" class:blocked={credentials.isBlocked}>
+                  {credentials.isBlocked ? 'Заблокирован' : 'Отсутствует'}
+                </span>
+              </div>
+              <button
+                class="btn-block"
+                on:click={toggleBlock}
+                disabled={togglingBlock}
+              >
+                {togglingBlock ? '...' : credentials.isBlocked ? 'Разблокировать' : 'Заблокировать'}
               </button>
             </div>
           </div>
@@ -258,6 +297,11 @@
     letter-spacing: 0.05em;
   }
 
+  .field-value {
+    font-size: 15px;
+    color: var(--text-main);
+  }
+
   .description {
     margin: 0;
     font-size: 15px;
@@ -304,6 +348,57 @@
     opacity: 0.55;
     cursor: default;
   }
+
+  .block-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .block-status-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .block-status-label {
+    font-size: 14px;
+    color: var(--text-muted);
+    min-width: 56px;
+  }
+
+  .block-status {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-muted);
+  }
+
+  .block-status.blocked {
+    color: #e05252;
+  }
+
+  .btn-block {
+    align-self: flex-start;
+    padding: 8px 18px;
+    border: 1px solid #e05252;
+    border-radius: 7px;
+    background: none;
+    color: #e05252;
+    font-size: 14px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+  }
+
+  .btn-block:hover {
+    background: #fef2f2;
+  }
+
+  .btn-block:disabled {
+    opacity: 0.55;
+    cursor: default;
+  }
+
 
   .muted {
     color: var(--text-muted);

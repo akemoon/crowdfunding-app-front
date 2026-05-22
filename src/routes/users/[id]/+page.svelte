@@ -9,6 +9,13 @@
     architecture_and_urban: 'Архитектура и урбанистика',
     sport:                  'Спорт',
     music:                  'Музыка',
+    art:                    'Искусство',
+    film:                   'Кино',
+    games:                  'Игры',
+    education:              'Образование',
+    food:                   'Еда',
+    fashion:                'Мода',
+    health:                 'Здоровье',
   };
 
   let user:     UserProfile | null = null;
@@ -69,9 +76,20 @@
         <ul class="list">
           {#each projects as project}
             <li>
-              <a class="project-item" href="/projects/{project.id}">
-                <span class="project-name">{project.name}</span>
-                <span class="project-cat">{CATEGORY_LABELS[project.category] ?? project.category}</span>
+              <a class="project-card" href="/projects/{project.id}">
+                <div class="card-cover">
+                  {#if project.coverURL}
+                    <img src={project.coverURL} alt={project.name} class="cover-img" />
+                  {:else}
+                    <div class="cover-placeholder">
+                      <span>{CATEGORY_LABELS[project.category] ?? project.category}</span>
+                    </div>
+                  {/if}
+                </div>
+                <div class="card-body">
+                  <span class="project-name">{project.name}</span>
+                  <span class="project-cat">{CATEGORY_LABELS[project.category] ?? project.category}</span>
+                </div>
               </a>
             </li>
           {/each}
@@ -159,26 +177,61 @@
     padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 16px;
   }
 
-  .project-item {
+  .project-card {
     display: flex;
     flex-direction: column;
-    gap: 3px;
-    padding: 12px 14px;
     border: 1px solid var(--line);
-    border-radius: 10px;
+    border-radius: 12px;
+    overflow: hidden;
     text-decoration: none;
     color: inherit;
+    background: #fff;
   }
 
-  .project-item:hover {
+  .project-card:hover {
     border-color: var(--accent);
   }
 
+  .card-cover {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--soft);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+
+  .cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .cover-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cover-placeholder span {
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+
+  .card-body {
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .project-name {
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 600;
     color: var(--text-main);
   }

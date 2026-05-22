@@ -29,6 +29,8 @@
       console.error('[signin]', result.code, result.message);
       if (result.code === 'invalid_credentials') {
         generalError = 'Неверный email или пароль';
+      } else if (result.code === 'user_blocked') {
+        generalError = 'Ваш аккаунт заблокирован.';
       } else {
         generalError = 'Произошла ошибка. Попробуйте позже.';
       }

@@ -12,6 +12,13 @@
     architecture_and_urban: 'Архитектура и урбанистика',
     sport:                  'Спорт',
     music:                  'Музыка',
+    art:                    'Искусство',
+    film:                   'Кино',
+    games:                  'Игры',
+    education:              'Образование',
+    food:                   'Еда',
+    fashion:                'Мода',
+    health:                 'Здоровье',
   };
 
   type Tab = 'pool' | 'mine';

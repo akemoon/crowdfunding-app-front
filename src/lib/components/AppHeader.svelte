@@ -2,14 +2,19 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page } from '$app/stores';
-  import { signout as apiSignout, getMe } from '$lib/api';
+  import { signout as apiSignout, getMe, getAuthMe } from '$lib/api';
 
   // Checked on mount (client-only: localStorage is not available during SSR)
   let isAuth = false;
   let dropdownOpen = false;
+  let role: 'user' | 'moder' | 'admin' = 'user';
 
-  onMount(() => {
-    isAuth = !!localStorage.getItem('accessToken');
+  onMount(async () => {
+    const token = localStorage.getItem('accessToken');
+    if (!token) return;
+    isAuth = true;
+    const res = await getAuthMe(token);
+    if (!('code' in res)) role = res.role;
   });
 
   function toggleDropdown() {
@@ -60,6 +65,21 @@
             <a class="dropdown-item" href="/settings" on:click={() => (dropdownOpen = false)}>
               Настройки
             </a>
+            <a class="dropdown-item" href="/promocodes" on:click={() => (dropdownOpen = false)}>
+              Промокоды
+            </a>
+            {#if role === 'moder'}
+              <div class="dropdown-divider"></div>
+              <a class="dropdown-item" href="/moderator" on:click={() => (dropdownOpen = false)}>
+                Кабинет модератора
+              </a>
+            {/if}
+            {#if role === 'admin'}
+              <div class="dropdown-divider"></div>
+              <a class="dropdown-item" href="/admin/users" on:click={() => (dropdownOpen = false)}>
+                Панель администратора
+              </a>
+            {/if}
             <div class="dropdown-divider"></div>
             <button class="dropdown-item signout" on:click={signout}>Выйти</button>
           </div>

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
-  import { createProject, uploadProjectImage, type ApiError } from '$lib/api';
+  import { createProject, uploadProjectImage, uploadProjectCover, type ApiError } from '$lib/api';
 
   const CATEGORIES = [
     { value: 'science',                label: 'Наука' },
@@ -8,6 +8,13 @@
     { value: 'architecture_and_urban', label: 'Архитектура и урбанистика' },
     { value: 'sport',                  label: 'Спорт' },
     { value: 'music',                  label: 'Музыка' },
+    { value: 'art',                    label: 'Искусство' },
+    { value: 'film',                   label: 'Кино' },
+    { value: 'games',                  label: 'Игры' },
+    { value: 'education',              label: 'Образование' },
+    { value: 'food',                   label: 'Еда' },
+    { value: 'fashion',                label: 'Мода' },
+    { value: 'health',                 label: 'Здоровье' },
   ];
 
   const CREATE_ERRORS: Record<string, string> = {
@@ -28,16 +35,48 @@
   let globalError = '';
   let submitting = false;
 
-  // Selected image files + local preview URLs
   interface Preview {
     file: File;
     url:  string;
   }
+
+  const ACCEPTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+
+  // Cover (single file)
+  let cover: Preview | null = null;
+  let coverInput: HTMLInputElement;
+  let coverDragOver = false;
+
+  function setCover(file: File) {
+    if (!ACCEPTED.includes(file.type)) return;
+    if (cover) URL.revokeObjectURL(cover.url);
+    cover = { file, url: URL.createObjectURL(file) };
+  }
+
+  function removeCover() {
+    if (cover) URL.revokeObjectURL(cover.url);
+    cover = null;
+  }
+
+  function onCoverInput(e: Event) {
+    const input = e.target as HTMLInputElement;
+    if (input.files?.[0]) setCover(input.files[0]);
+    input.value = '';
+  }
+
+  function onCoverDragOver(e: DragEvent) { e.preventDefault(); coverDragOver = true; }
+  function onCoverDragLeave() { coverDragOver = false; }
+  function onCoverDrop(e: DragEvent) {
+    e.preventDefault();
+    coverDragOver = false;
+    const file = e.dataTransfer?.files?.[0];
+    if (file) setCover(file);
+  }
+
+  // Photos (multiple)
   let previews: Preview[] = [];
   let dragOver = false;
   let fileInput: HTMLInputElement;
-
-  const ACCEPTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
 
   function addFiles(files: FileList | File[]) {
     for (const file of Array.from(files)) {
@@ -73,7 +112,7 @@
   }
 
   const VALID_CURRENCIES = ['RUB', 'USD'];
-  const VALID_CATEGORIES = ['science', 'tech', 'architecture_and_urban', 'sport', 'music'];
+  const VALID_CATEGORIES = ['science', 'tech', 'architecture_and_urban', 'sport', 'music', 'art', 'film', 'games', 'education', 'food', 'fashion', 'health'];
 
   function validate(): boolean {
     const errors: Record<string, string> = {};
@@ -125,7 +164,13 @@
 
     const projectID = result.id;
 
-    // Upload images in parallel, collect errors
+    if (cover) {
+      const coverRes = await uploadProjectCover(token, projectID, cover.file);
+      if ('code' in coverRes) {
+        console.error('[uploadProjectCover]', coverRes.code, coverRes.message);
+      }
+    }
+
     if (previews.length > 0) {
       const uploads = await Promise.all(
         previews.map(p => uploadProjectImage(token, projectID, p.file))
@@ -133,7 +178,6 @@
       const failed = uploads.filter(r => 'code' in r).length;
       if (failed > 0) {
         console.error(`[uploadProjectImage] ${failed} of ${previews.length} failed`);
-        // Still redirect — project is created, images can be managed later
       }
     }
 
@@ -197,6 +241,40 @@
         <input id="durationDays" type="number" min="1" max="60" bind:value={form.durationDays} disabled={submitting} />
         {#if fieldErrors.durationDays}<p class="field-error">{fieldErrors.durationDays}</p>{/if}
       </div>
+    </div>
+
+    <!-- Cover upload -->
+    <div class="field">
+      <label>Обложка</label>
+      {#if cover}
+        <div class="cover-preview-wrap">
+          <img src={cover.url} alt="обложка" class="cover-preview" />
+          <button type="button" class="cover-remove" on:click={removeCover} disabled={submitting}>
+            Удалить обложку
+          </button>
+        </div>
+      {:else}
+        <!-- svelte-ignore a11y-no-static-element-interactions -->
+        <div
+          class="dropzone"
+          class:drag-over={coverDragOver}
+          on:dragover={onCoverDragOver}
+          on:dragleave={onCoverDragLeave}
+          on:drop={onCoverDrop}
+          on:click={() => coverInput.click()}
+        >
+          <span class="dropzone-text">Перетащите обложку сюда или нажмите для выбора</span>
+          <span class="dropzone-hint">JPEG, PNG, GIF, WebP · одна обложка</span>
+        </div>
+        <input
+          bind:this={coverInput}
+          type="file"
+          accept="image/jpeg,image/png,image/gif,image/webp"
+          class="file-input-hidden"
+          on:change={onCoverInput}
+          disabled={submitting}
+        />
+      {/if}
     </div>
 
     <!-- Image upload -->
@@ -323,6 +401,39 @@
 
   textarea {
     resize: none;
+  }
+
+  /* --- Cover preview --- */
+
+  .cover-preview-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .cover-preview {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+  }
+
+  .cover-remove {
+    align-self: flex-start;
+    padding: 6px 14px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: none;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--text-muted);
+    cursor: pointer;
+  }
+
+  .cover-remove:hover {
+    border-color: #e05252;
+    color: #e05252;
   }
 
   /* --- Dropzone --- */

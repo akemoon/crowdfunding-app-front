@@ -8,9 +8,17 @@
     architecture_and_urban: 'Архитектура и урбанистика',
     sport:                  'Спорт',
     music:                  'Музыка',
+    art:                    'Искусство',
+    film:                   'Кино',
+    games:                  'Игры',
+    education:              'Образование',
+    food:                   'Еда',
+    fashion:                'Мода',
+    health:                 'Здоровье',
   };
 
   const STATUS_LABELS: Record<string, string> = {
+    draft:    'Черновик',
     review:   'На модерации',
     active:   'Активен',
     finished: 'Завершён',
@@ -151,6 +159,7 @@
     white-space: nowrap;
   }
 
+  .status-draft    { border-color: #bbb; color: #888; }
   .status-active   { border-color: #4caf50; color: #4caf50; }
   .status-finished { border-color: #9e9e9e; color: #9e9e9e; }
   .status-review   { border-color: var(--accent); color: var(--accent); }

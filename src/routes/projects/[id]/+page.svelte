@@ -10,6 +10,13 @@
     architecture_and_urban: 'Архитектура и урбанистика',
     sport:                  'Спорт',
     music:                  'Музыка',
+    art:                    'Искусство',
+    film:                   'Кино',
+    games:                  'Игры',
+    education:              'Образование',
+    food:                   'Еда',
+    fashion:                'Мода',
+    health:                 'Здоровье',
   };
 
   const CURRENCY_SYMBOL: Record<string, string> = {
@@ -110,6 +117,10 @@
     <p class="muted">Загрузка...</p>
   {:else}
     <a class="back" href="/projects">← Все проекты</a>
+
+    {#if project.coverURL}
+      <img src={project.coverURL} alt={project.name} class="cover-img" />
+    {/if}
 
     <div class="header">
       <h1>{project.name}</h1>
@@ -245,6 +256,16 @@
     font-size: 13px;
     font-weight: 600;
     color: var(--accent);
+  }
+
+  .cover-img {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 10px;
+    border: 1px solid var(--line);
+    margin-bottom: 20px;
+    display: block;
   }
 
   .images-wrap {

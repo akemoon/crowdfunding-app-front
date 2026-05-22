@@ -10,6 +10,13 @@
     architecture_and_urban: 'Архитектура и урбанистика',
     sport:                  'Спорт',
     music:                  'Музыка',
+    art:                    'Искусство',
+    film:                   'Кино',
+    games:                  'Игры',
+    education:              'Образование',
+    food:                   'Еда',
+    fashion:                'Мода',
+    health:                 'Здоровье',
   };
 
   let status:   ProjectStatus = 'active';
@@ -138,20 +145,29 @@
 
   <!-- List -->
   {#if items.length > 0}
-    <ul class="project-list">
+    <ul class="project-grid">
       {#each items as project (project.id)}
         <li>
-          <a class="project-item" href="/projects/{project.id}">
-            <span class="project-name">{project.name}</span>
-            <span class="project-category">
-              {CATEGORY_LABELS[project.category] ?? project.category}
-            </span>
-            {#if status === 'finished'}
-              <span class="project-status">Завершён</span>
-            {/if}
-            {#if project.isBoosted}
-              <span class="boosted">★ Топ</span>
-            {/if}
+          <a class="project-card" href="/projects/{project.id}">
+            <div class="card-cover">
+              {#if project.coverURL}
+                <img src={project.coverURL} alt={project.name} class="cover-img" />
+              {:else}
+                <div class="cover-placeholder">
+                  <span>{CATEGORY_LABELS[project.category] ?? project.category}</span>
+                </div>
+              {/if}
+              {#if project.isBoosted}
+                <span class="boosted-badge">★ Топ</span>
+              {/if}
+              {#if status === 'finished'}
+                <span class="finished-badge">Завершён</span>
+              {/if}
+            </div>
+            <div class="card-body">
+              <span class="card-name">{project.name}</span>
+              <span class="card-category">{CATEGORY_LABELS[project.category] ?? project.category}</span>
+            </div>
           </a>
         </li>
       {/each}
@@ -175,7 +191,7 @@
 
 <style>
   .page {
-    max-width: 720px;
+    max-width: 960px;
   }
 
   h1 {
@@ -251,53 +267,103 @@
     border-color: var(--accent);
   }
 
-  /* --- List --- */
+  /* --- Card grid --- */
 
-  .project-list {
+  .project-grid {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 20px;
   }
 
-  .project-item {
+  .project-card {
     display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 12px 16px;
+    flex-direction: column;
     border: 1px solid var(--line);
-    border-radius: 8px;
+    border-radius: 12px;
     background: #fff;
     text-decoration: none;
     color: inherit;
+    overflow: hidden;
   }
 
-  .project-item:hover {
+  .project-card:hover {
     border-color: var(--accent);
   }
 
-  .project-name {
-    flex: 1;
-    font-size: 15px;
-    font-weight: 500;
+  .card-cover {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: var(--soft);
+    overflow: hidden;
+    flex-shrink: 0;
   }
 
-  .project-status {
-    font-size: 12px;
+  .cover-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .cover-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--soft);
+  }
+
+  .cover-placeholder span {
+    font-size: 13px;
     color: var(--text-muted);
   }
 
-  .project-category {
-    font-size: 12px;
-    color: var(--text-muted);
+  .boosted-badge {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #fff;
+    background: var(--accent);
+    padding: 2px 8px;
+    border-radius: 20px;
   }
 
-  .boosted {
-    font-size: 12px;
+  .finished-badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    font-size: 11px;
     font-weight: 600;
-    color: var(--accent);
-    white-space: nowrap;
+    color: #fff;
+    background: #9e9e9e;
+    padding: 2px 8px;
+    border-radius: 20px;
+  }
+
+  .card-body {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .card-name {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-main);
+    line-height: 1.3;
+  }
+
+  .card-category {
+    font-size: 12px;
+    color: var(--text-muted);
   }
 
   /* --- State messages --- */
