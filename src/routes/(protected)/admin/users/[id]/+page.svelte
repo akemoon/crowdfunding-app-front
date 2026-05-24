@@ -9,7 +9,7 @@
   import type { ToastItem } from '$lib/components/Toast.svelte';
 
   const ERROR_MESSAGES: Record<string, string> = {
-    forbidden:     'Нет доступа — требуются права администратора',
+    forbidden:     'Нет доступа - требуются права администратора',
     not_found:     'Пользователь не найден',
     invalid_role:  'Недопустимая роль',
     internal_error: 'Внутренняя ошибка сервера',
@@ -95,7 +95,7 @@
 </script>
 
 <svelte:head>
-  <title>{profile ? profile.displayName || profile.username : 'Пользователь'} — Администратор</title>
+  <title>{profile ? profile.displayName || profile.username : 'Пользователь'} - Администратор</title>
 </svelte:head>
 
 <div class="page">

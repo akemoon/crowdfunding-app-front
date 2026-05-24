@@ -87,7 +87,7 @@
           {#if editing}
             <input class="input" bind:value={form.displayName} placeholder={profile.displayName || 'Не указано'} />
           {:else}
-            <span class="value">{profile.displayName || '—'}</span>
+            <span class="value">{profile.displayName || '-'}</span>
           {/if}
         </div>
         <div class="field">
@@ -95,7 +95,7 @@
           {#if editing}
             <textarea class="input textarea" bind:value={form.description} placeholder={profile.description || 'Не указано'} rows="3"></textarea>
           {:else}
-            <span class="value">{profile.description || '—'}</span>
+            <span class="value">{profile.description || '-'}</span>
           {/if}
         </div>
 

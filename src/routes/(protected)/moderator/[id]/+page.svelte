@@ -140,7 +140,7 @@
           <span class="value">{CATEGORY_LABELS[project.category] ?? project.category}</span>
         </div>
         <div class="field">
-          <span class="label">Цель сбора</span>
+          <span class="label">Сумма сбора</span>
           <span class="value">{project.goalAmount.toLocaleString('ru-RU')} {project.currency === 'RUB' ? '₽' : '$'}</span>
         </div>
         <div class="field">

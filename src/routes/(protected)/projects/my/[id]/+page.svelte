@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
   import { page } from '$app/state';
-  import { getProject, getMyApplication, getProjectStats, getPayout, boostProject, submitProject, updateProject, uploadProjectCover, uploadProjectImage, type Project, type ProjectImage, type ApiError, type Application, type ProjectStats, type Payout } from '$lib/api';
+  import { getProject, getMyApplication, getProjectStats, getPayout, boostProject, submitProject, updateProject, uploadProjectCover, uploadProjectImage, deleteProjectImage, type Project, type ProjectImage, type ApiError, type Application, type ProjectStats, type Payout } from '$lib/api';
   import ProjectImages from '$lib/components/ProjectImages.svelte';
   import Toast from '$lib/components/Toast.svelte';
   import type { ToastItem } from '$lib/components/Toast.svelte';
@@ -98,9 +98,15 @@
     const goal = parseInt(editForm.goalAmount, 10);
     const days = parseInt(editForm.durationDays, 10);
     const local: Record<string, string> = {};
-    if (!editForm.name.trim())              local.name         = 'Введите название.';
-    if (isNaN(goal) || goal < 1)            local.goalAmount   = 'Некорректная сумма.';
-    if (isNaN(days) || days < 1 || days > 60) local.durationDays = 'От 1 до 60 дней.';
+    const nameVal = editForm.name.trim();
+    if (nameVal !== editForm.name || /[\r\n]/.test(editForm.name) || [...editForm.name].length < 1 || [...editForm.name].length > 80)
+      local.name = 'Неверное значение';
+    if ([...editForm.description].length > 10000)
+      local.description  = 'Неверное значение';
+    if (isNaN(goal) || goal < 1 || goal > 100_000_000)
+      local.goalAmount   = 'Неверное значение';
+    if (isNaN(days) || days < 1 || days > 60)
+      local.durationDays = 'Неверное значение';
     if (Object.keys(local).length > 0) { editErrors = local; return; }
 
     editSubmitting = true;
@@ -141,10 +147,11 @@
   let photoInput: HTMLInputElement;
   let uploadingPhoto = false;
   const ACCEPTED_PHOTO = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_FILE_SIZE  = 5 * 1024 * 1024;
 
   async function onPhotoInput(e: Event) {
     const input = e.target as HTMLInputElement;
-    const files = Array.from(input.files ?? []).filter(f => ACCEPTED_PHOTO.includes(f.type));
+    const files = Array.from(input.files ?? []).filter(f => ACCEPTED_PHOTO.includes(f.type) && f.size <= MAX_FILE_SIZE);
     input.value = '';
     if (!files.length || !project) return;
     uploadingPhoto = true;
@@ -163,6 +170,17 @@
     }
   }
 
+  async function removeImage(imageID: string) {
+    if (!project) return;
+    const res = await deleteProjectImage(token, project.id, imageID);
+    if (res !== null) {
+      console.error('[deleteProjectImage]', res.code, res.message);
+      toastComponent.show('Не удалось удалить фото.', 'error');
+      return;
+    }
+    project = { ...project, images: project.images?.filter(i => i.id !== imageID) };
+  }
+
   // Cover upload state (draft only)
   let coverInput: HTMLInputElement;
   let uploadingCover = false;
@@ -170,6 +188,7 @@
 
   const COVER_ERRORS: Record<string, string> = {
     unsupported_file_type: 'Неподдерживаемый формат файла.',
+    file_too_large:        'Файл превышает 5 МБ.',
     project_not_draft:     'Загрузка обложки доступна только для черновика.',
     forbidden:             'Нет доступа.',
     project_not_found:     'Проект не найден.',
@@ -182,6 +201,10 @@
     if (!file || !project) return;
     if (!ACCEPTED_COVER.includes(file.type)) {
       toastComponent.show('Неподдерживаемый формат файла.', 'error');
+      return;
+    }
+    if (file.size > MAX_FILE_SIZE) {
+      toastComponent.show('Файл превышает 5 МБ.', 'error');
       return;
     }
     uploadingCover = true;
@@ -424,12 +447,14 @@
           <div class="edit-form">
             <div class="edit-field">
               <label>Название</label>
-              <input type="text" maxlength="100" bind:value={editForm.name} disabled={editSubmitting} />
+              <input type="text" maxlength="80" bind:value={editForm.name} disabled={editSubmitting} />
+              <p class="field-hint">до 80 символов</p>
               {#if editErrors.name}<p class="edit-error">{editErrors.name}</p>{/if}
             </div>
             <div class="edit-field">
               <label>Описание</label>
-              <textarea rows="5" maxlength="1000" bind:value={editForm.description} disabled={editSubmitting}></textarea>
+              <textarea rows="5" maxlength="10000" bind:value={editForm.description} disabled={editSubmitting}></textarea>
+              <p class="field-hint">до 10 000 символов</p>
               {#if editErrors.description}<p class="edit-error">{editErrors.description}</p>{/if}
             </div>
             <div class="edit-row">
@@ -445,21 +470,23 @@
               <div class="edit-field">
                 <label>Валюта</label>
                 <select bind:value={editForm.currency} disabled={editSubmitting}>
-                  <option value="RUB">RUB — рубль</option>
-                  <option value="USD">USD — доллар</option>
+                  <option value="RUB">RUB - рубль</option>
+                  <option value="USD">USD - доллар</option>
                 </select>
                 {#if editErrors.currency}<p class="edit-error">{editErrors.currency}</p>{/if}
               </div>
             </div>
             <div class="edit-row">
               <div class="edit-field">
-                <label>Цель сбора</label>
-                <input type="number" min="1" bind:value={editForm.goalAmount} disabled={editSubmitting} />
+                <label>Сумма сбора</label>
+                <input type="number" min="1" max="100000000" bind:value={editForm.goalAmount} disabled={editSubmitting} />
+                <p class="field-hint">от 1 до 100 000 000</p>
                 {#if editErrors.goalAmount}<p class="edit-error">{editErrors.goalAmount}</p>{/if}
               </div>
               <div class="edit-field">
                 <label>Длительность (дней)</label>
                 <input type="number" min="1" max="60" bind:value={editForm.durationDays} disabled={editSubmitting} />
+                <p class="field-hint">от 1 до 60</p>
                 {#if editErrors.durationDays}<p class="edit-error">{editErrors.durationDays}</p>{/if}
               </div>
             </div>
@@ -511,19 +538,37 @@
         {/if}
         {#if project.status === 'draft'}
           <div class="draft-media-row">
-            <button type="button" class="btn-cover" on:click={() => coverInput.click()} disabled={uploadingCover}>
-              {uploadingCover ? 'Загрузка...' : project.coverURL ? 'Заменить обложку' : 'Загрузить обложку'}
-            </button>
-            <input bind:this={coverInput} type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="file-input-hidden" on:change={onCoverInput} />
-            <button type="button" class="btn-cover" on:click={() => photoInput.click()} disabled={uploadingPhoto}>
-              {uploadingPhoto ? 'Загрузка...' : 'Добавить фото'}
-            </button>
-            <input bind:this={photoInput} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple class="file-input-hidden" on:change={onPhotoInput} />
+            <div class="media-btn-group">
+              <button type="button" class="btn-cover" on:click={() => coverInput.click()} disabled={uploadingCover}>
+                {uploadingCover ? 'Загрузка...' : project.coverURL ? 'Заменить обложку' : 'Загрузить обложку'}
+              </button>
+              <p class="field-hint">до 5 МБ, JPEG / PNG / GIF / WebP</p>
+              {#if !project.coverURL}<p class="cover-required-hint">Обложка обязательна для отправки на модерацию</p>{/if}
+              <input bind:this={coverInput} type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="file-input-hidden" on:change={onCoverInput} />
+            </div>
+            <div class="media-btn-group">
+              <button type="button" class="btn-cover" on:click={() => photoInput.click()} disabled={uploadingPhoto}>
+                {uploadingPhoto ? 'Загрузка...' : 'Добавить фото'}
+              </button>
+              <p class="field-hint">до 5 МБ каждая, JPEG / PNG / GIF / WebP</p>
+              <input bind:this={photoInput} type="file" accept="image/jpeg,image/png,image/gif,image/webp" multiple class="file-input-hidden" on:change={onPhotoInput} />
+            </div>
           </div>
         {/if}
 
         {#if project.images && project.images.length > 0}
-          <ProjectImages images={project.images} />
+          {#if project.status === 'draft'}
+            <div class="images-edit-grid">
+              {#each project.images as img (img.id)}
+                <div class="image-edit-item">
+                  <img src={img.url} alt="фото" class="image-edit-thumb" />
+                  <button class="btn-remove-image" on:click={() => removeImage(img.id)} title="Удалить">×</button>
+                </div>
+              {/each}
+            </div>
+          {:else}
+            <ProjectImages images={project.images} />
+          {/if}
         {/if}
 
         {#if project.status === 'draft'}
@@ -574,11 +619,11 @@
 
         <div class="stat-cards">
           <div class="stat-card">
-            <span class="stat-value">{stats ? stats.contributersNum : '—'}</span>
+            <span class="stat-value">{stats ? stats.contributersNum : '-'}</span>
             <span class="stat-label">Уникальных спонсоров</span>
           </div>
           <div class="stat-card">
-            <span class="stat-value">{stats ? stats.contributionsNum : '—'}</span>
+            <span class="stat-value">{stats ? stats.contributionsNum : '-'}</span>
             <span class="stat-label">Платежей</span>
           </div>
         </div>
@@ -1092,6 +1137,12 @@
     gap: 14px;
   }
 
+  .field-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
+
   .edit-error {
     margin: 0;
     font-size: 13px;
@@ -1149,6 +1200,18 @@
     color: var(--accent);
   }
 
+  .cover-required-hint {
+    margin: 0;
+    font-size: 12px;
+    color: #e05252;
+  }
+
+  .media-btn-group {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
   .draft-media-row {
     display: flex;
     gap: 10px;
@@ -1161,6 +1224,51 @@
     object-fit: cover;
     border-radius: 8px;
     border: 1px solid var(--line);
+  }
+
+  .images-edit-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .image-edit-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    flex-shrink: 0;
+  }
+
+  .image-edit-thumb {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    display: block;
+  }
+
+  .btn-remove-image {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(0, 0, 0, 0.55);
+    color: #fff;
+    border: none;
+    font-size: 14px;
+    line-height: 1;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+  }
+
+  .btn-remove-image:hover {
+    background: #e05252;
   }
 
   .btn-cover {

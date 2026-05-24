@@ -40,7 +40,8 @@
     url:  string;
   }
 
-  const ACCEPTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const ACCEPTED   = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  const MAX_SIZE   = 5 * 1024 * 1024;
 
   // Cover (single file)
   let cover: Preview | null = null;
@@ -48,7 +49,7 @@
   let coverDragOver = false;
 
   function setCover(file: File) {
-    if (!ACCEPTED.includes(file.type)) return;
+    if (!ACCEPTED.includes(file.type) || file.size > MAX_SIZE) return;
     if (cover) URL.revokeObjectURL(cover.url);
     cover = { file, url: URL.createObjectURL(file) };
   }
@@ -80,7 +81,7 @@
 
   function addFiles(files: FileList | File[]) {
     for (const file of Array.from(files)) {
-      if (!ACCEPTED.includes(file.type)) continue;
+      if (!ACCEPTED.includes(file.type) || file.size > MAX_SIZE) continue;
       previews = [...previews, { file, url: URL.createObjectURL(file) }];
     }
   }
@@ -116,16 +117,17 @@
 
   function validate(): boolean {
     const errors: Record<string, string> = {};
-    if (form.name.length < 1 || form.name.length > 100)
-      errors.name = 'Некорректная длина названия';
-    if (form.description.length > 1000)
-      errors.description = 'Некорректная длина описания';
+    const nameVal = form.name.trim();
+    if (nameVal !== form.name || /[\r\n]/.test(form.name) || [...form.name].length < 1 || [...form.name].length > 80)
+      errors.name = 'Неверное значение';
+    if ([...form.description].length > 10000)
+      errors.description = 'Неверное значение';
     const goal = parseInt(form.goalAmount, 10);
-    if (isNaN(goal) || goal < 1)
-      errors.goalAmount = 'Некорректная сумма цели';
+    if (isNaN(goal) || goal < 1 || goal > 100_000_000)
+      errors.goalAmount = 'Неверное значение';
     const days = parseInt(form.durationDays, 10);
     if (isNaN(days) || days < 1 || days > 60)
-      errors.durationDays = 'Некорректная длительность';
+      errors.durationDays = 'Неверное значение';
     if (!VALID_CURRENCIES.includes(form.currency))
       errors.currency = 'Неизвестная валюта';
     if (!VALID_CATEGORIES.includes(form.category))
@@ -196,13 +198,15 @@
   <form on:submit|preventDefault={submit}>
     <div class="field">
       <label for="name">Название</label>
-      <input id="name" type="text" maxlength="100" bind:value={form.name} disabled={submitting} />
+      <input id="name" type="text" maxlength="80" bind:value={form.name} disabled={submitting} />
+      <p class="field-hint">до 80 символов</p>
       {#if fieldErrors.name}<p class="field-error">{fieldErrors.name}</p>{/if}
     </div>
 
     <div class="field">
       <label for="description">Описание</label>
-      <textarea id="description" maxlength="1000" rows="4" bind:value={form.description} disabled={submitting}></textarea>
+      <textarea id="description" maxlength="10000" rows="4" bind:value={form.description} disabled={submitting}></textarea>
+      <p class="field-hint">до 10 000 символов</p>
       {#if fieldErrors.description}<p class="field-error">{fieldErrors.description}</p>{/if}
     </div>
 
@@ -222,8 +226,8 @@
         <label for="currency">Валюта</label>
         <select id="currency" bind:value={form.currency} disabled={submitting}>
           <option value="" disabled>Выберите валюту</option>
-          <option value="RUB">RUB — рубль</option>
-          <option value="USD">USD — доллар</option>
+          <option value="RUB">RUB - рубль</option>
+          <option value="USD">USD - доллар</option>
         </select>
         {#if fieldErrors.currency}<p class="field-error">{fieldErrors.currency}</p>{/if}
       </div>
@@ -231,14 +235,16 @@
 
     <div class="row">
       <div class="field">
-        <label for="goalAmount">Цель сбора</label>
-        <input id="goalAmount" type="number" min="1" bind:value={form.goalAmount} disabled={submitting} />
+        <label for="goalAmount">Сумма сбора</label>
+        <input id="goalAmount" type="number" min="1" max="100000000" bind:value={form.goalAmount} disabled={submitting} />
+        <p class="field-hint">от 1 до 100 000 000</p>
         {#if fieldErrors.goalAmount}<p class="field-error">{fieldErrors.goalAmount}</p>{/if}
       </div>
 
       <div class="field">
         <label for="durationDays">Длительность (дней)</label>
         <input id="durationDays" type="number" min="1" max="60" bind:value={form.durationDays} disabled={submitting} />
+        <p class="field-hint">от 1 до 60</p>
         {#if fieldErrors.durationDays}<p class="field-error">{fieldErrors.durationDays}</p>{/if}
       </div>
     </div>
@@ -246,6 +252,7 @@
     <!-- Cover upload -->
     <div class="field">
       <label>Обложка</label>
+      <p class="label-optional">опционально</p>
       {#if cover}
         <div class="cover-preview-wrap">
           <img src={cover.url} alt="обложка" class="cover-preview" />
@@ -264,7 +271,7 @@
           on:click={() => coverInput.click()}
         >
           <span class="dropzone-text">Перетащите обложку сюда или нажмите для выбора</span>
-          <span class="dropzone-hint">JPEG, PNG, GIF, WebP · одна обложка</span>
+          <span class="dropzone-hint">JPEG, PNG, GIF, WebP - до 5 МБ</span>
         </div>
         <input
           bind:this={coverInput}
@@ -280,6 +287,7 @@
     <!-- Image upload -->
     <div class="field">
       <label>Фотографии</label>
+      <p class="label-optional">опционально</p>
 
       <!-- svelte-ignore a11y-no-static-element-interactions -->
       <div
@@ -291,7 +299,7 @@
         on:click={() => fileInput.click()}
       >
         <span class="dropzone-text">Перетащите фото сюда или нажмите для выбора</span>
-        <span class="dropzone-hint">JPEG, PNG, GIF, WebP</span>
+        <span class="dropzone-hint">JPEG, PNG, GIF, WebP - до 5 МБ каждая</span>
       </div>
 
       <input
@@ -368,6 +376,15 @@
   .field {
     display: grid;
     gap: 6px;
+  }
+
+  .label-optional {
+    margin: 0;
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--text-muted);
+    text-transform: none;
+    letter-spacing: 0;
   }
 
   label {
@@ -520,6 +537,12 @@
   }
 
   /* --- Errors --- */
+
+  .field-hint {
+    margin: 0;
+    font-size: 12px;
+    color: var(--text-muted);
+  }
 
   .field-error {
     margin: 0;

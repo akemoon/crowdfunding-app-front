@@ -34,7 +34,7 @@
 </script>
 
 <svelte:head>
-  <title>Пользователи — Администратор</title>
+  <title>Пользователи - Администратор</title>
 </svelte:head>
 
 <div class="page">
