@@ -592,3 +592,31 @@ export async function signup(payload: SignupPayload): Promise<ApiError | null> {
   if (res.status === 201) return null;
   return parseError(res);
 }
+
+// Returns list of users the current user follows. Returns [] if none.
+export async function getMySubscriptions(accessToken: string): Promise<UserProfile[] | ApiError> {
+  const res = await authFetch(`${BASE}/users/me/subscriptions`, {}, accessToken);
+  if (res.status === 200) {
+    const data = await res.json();
+    return (data as UserProfile[]) ?? [];
+  }
+  return parseError(res);
+}
+
+// Subscribe to a user by ID. Returns null on success.
+export async function followUser(accessToken: string, id: string): Promise<ApiError | null> {
+  const res = await authFetch(`${BASE}/users/${encodeURIComponent(id)}/follow`, {
+    method: 'POST',
+  }, accessToken);
+  if (res.status === 201) return null;
+  return parseError(res);
+}
+
+// Unsubscribe from a user by ID. Returns null on success.
+export async function unfollowUser(accessToken: string, id: string): Promise<ApiError | null> {
+  const res = await authFetch(`${BASE}/users/${encodeURIComponent(id)}/follow`, {
+    method: 'DELETE',
+  }, accessToken);
+  if (res.status === 204) return null;
+  return parseError(res);
+}

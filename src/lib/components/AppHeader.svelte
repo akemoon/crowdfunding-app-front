@@ -65,6 +65,9 @@
             <a class="dropdown-item" href="/settings" on:click={() => (dropdownOpen = false)}>
               Настройки
             </a>
+            <a class="dropdown-item" href="/subscriptions" on:click={() => (dropdownOpen = false)}>
+              Подписки
+            </a>
             <a class="dropdown-item" href="/promocodes" on:click={() => (dropdownOpen = false)}>
               Промокоды
             </a>

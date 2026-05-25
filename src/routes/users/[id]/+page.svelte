@@ -1,7 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/stores';
-  import { getUser, getUserProjects, type UserProfile, type Project } from '$lib/api';
+  import {
+    getUser, getUserProjects, getMe, getMySubscriptions,
+    followUser, unfollowUser,
+    type UserProfile, type Project,
+  } from '$lib/api';
 
   const CATEGORY_LABELS: Record<string, string> = {
     science:                'Наука',
@@ -22,23 +26,70 @@
   let projects: Project[]          = [];
   let errorMsg = '';
 
+  // Follow state — null means not logged in or own profile (button hidden)
+  let isFollowing: boolean | null = null;
+  let followLoading = false;
+
   onMount(async () => {
-    const id = $page.params.id;
-    const [userRes, projRes] = await Promise.all([getUser(id), getUserProjects(id)]);
+    const id    = $page.params.id;
+    const token = localStorage.getItem('accessToken');
 
-    if ('code' in userRes) {
-      console.error('[getUser]', userRes.code, userRes.message);
-      errorMsg = userRes.code === 'user_not_found'
-        ? 'Пользователь не найден.'
-        : 'Не удалось загрузить профиль.';
+    const baseRequests: [Promise<UserProfile | import('$lib/api').ApiError>, Promise<Project[] | import('$lib/api').ApiError>] =
+      [getUser(id), getUserProjects(id)];
+
+    if (token) {
+      const [userRes, projRes, meRes, subsRes] = await Promise.all([
+        ...baseRequests,
+        getMe(token),
+        getMySubscriptions(token),
+      ]);
+
+      if ('code' in userRes) {
+        console.error('[getUser]', userRes.code, userRes.message);
+        errorMsg = userRes.code === 'user_not_found'
+          ? 'Пользователь не найден.'
+          : 'Не удалось загрузить профиль.';
+      } else {
+        user = userRes;
+      }
+
+      if (!('code' in projRes)) projects = projRes;
+
+      if (!('code' in meRes) && !('code' in subsRes) && user) {
+        if (meRes.id !== user.id) {
+          isFollowing = (subsRes as UserProfile[]).some(u => u.id === user!.id);
+        }
+      }
     } else {
-      user = userRes;
-    }
+      const [userRes, projRes] = await Promise.all(baseRequests);
 
-    if (!('code' in projRes)) {
-      projects = projRes;
+      if ('code' in userRes) {
+        console.error('[getUser]', userRes.code, userRes.message);
+        errorMsg = userRes.code === 'user_not_found'
+          ? 'Пользователь не найден.'
+          : 'Не удалось загрузить профиль.';
+      } else {
+        user = userRes;
+      }
+
+      if (!('code' in projRes)) projects = projRes;
     }
   });
+
+  async function toggleFollow() {
+    if (!user || isFollowing === null) return;
+    followLoading = true;
+    const token = localStorage.getItem('accessToken') ?? '';
+    const res = isFollowing
+      ? await unfollowUser(token, user.id)
+      : await followUser(token, user.id);
+    followLoading = false;
+    if (res !== null) {
+      console.error('[toggleFollow]', res.code, res.message);
+      return;
+    }
+    isFollowing = !isFollowing;
+  }
 </script>
 
 <svelte:head>
@@ -60,7 +111,19 @@
         {/if}
       </div>
       <div class="info">
-        <h1>{user.displayName}</h1>
+        <div class="name-row">
+          <h1>{user.displayName}</h1>
+          {#if isFollowing !== null}
+            <button
+              class="btn-follow"
+              class:following={isFollowing}
+              on:click={toggleFollow}
+              disabled={followLoading}
+            >
+              {followLoading ? '...' : isFollowing ? 'Отписаться' : 'Подписаться'}
+            </button>
+          {/if}
+        </div>
         <p class="username">@{user.username}</p>
         {#if user.description}
           <p class="bio">{user.description}</p>
@@ -145,10 +208,46 @@
     padding-top: 4px;
   }
 
+  .name-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+  }
+
   h1 {
     margin: 0;
     font-size: 26px;
     font-weight: 700;
+  }
+
+  .btn-follow {
+    padding: 6px 16px;
+    border: 1px solid var(--accent);
+    border-radius: 7px;
+    background: var(--accent);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .btn-follow.following {
+    background: none;
+    color: var(--text-muted);
+    border-color: var(--line);
+  }
+
+  .btn-follow.following:hover {
+    border-color: #e05252;
+    color: #e05252;
+  }
+
+  .btn-follow:disabled {
+    opacity: 0.55;
+    cursor: default;
   }
 
   .username {
