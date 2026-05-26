@@ -195,17 +195,17 @@
   <a class="back" href="/projects/my">← Мои проекты</a>
   <h1>Новый проект</h1>
 
-  <form on:submit|preventDefault={submit}>
+  <form on:submit|preventDefault={submit} novalidate>
     <div class="field">
       <label for="name">Название</label>
-      <input id="name" type="text" maxlength="80" bind:value={form.name} disabled={submitting} />
+      <input id="name" type="text" bind:value={form.name} disabled={submitting} />
       <p class="field-hint">до 80 символов</p>
       {#if fieldErrors.name}<p class="field-error">{fieldErrors.name}</p>{/if}
     </div>
 
     <div class="field">
       <label for="description">Описание</label>
-      <textarea id="description" maxlength="10000" rows="4" bind:value={form.description} disabled={submitting}></textarea>
+      <textarea id="description" rows="8" bind:value={form.description} disabled={submitting}></textarea>
       <p class="field-hint">до 10 000 символов</p>
       {#if fieldErrors.description}<p class="field-error">{fieldErrors.description}</p>{/if}
     </div>
@@ -236,14 +236,14 @@
     <div class="row">
       <div class="field">
         <label for="goalAmount">Сумма сбора</label>
-        <input id="goalAmount" type="number" min="1" max="100000000" bind:value={form.goalAmount} disabled={submitting} />
+        <input id="goalAmount" type="number" bind:value={form.goalAmount} disabled={submitting} />
         <p class="field-hint">от 1 до 100 000 000</p>
         {#if fieldErrors.goalAmount}<p class="field-error">{fieldErrors.goalAmount}</p>{/if}
       </div>
 
       <div class="field">
         <label for="durationDays">Длительность (дней)</label>
-        <input id="durationDays" type="number" min="1" max="60" bind:value={form.durationDays} disabled={submitting} />
+        <input id="durationDays" type="number" bind:value={form.durationDays} disabled={submitting} />
         <p class="field-hint">от 1 до 60</p>
         {#if fieldErrors.durationDays}<p class="field-error">{fieldErrors.durationDays}</p>{/if}
       </div>
@@ -417,7 +417,7 @@
   }
 
   textarea {
-    resize: none;
+    resize: vertical;
   }
 
   /* --- Cover preview --- */
