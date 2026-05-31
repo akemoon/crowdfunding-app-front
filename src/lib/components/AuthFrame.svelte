@@ -4,7 +4,7 @@
 
 <section class="auth-page">
   <!-- TODO: update brand name when finalized -->
-  <a class="auth-logo" href="/">Краудфандинг</a>
+  <a class="auth-logo" href="/">Краудфандинговая платформа</a>
   <div class="auth-card">
     <h1>{title}</h1>
     <slot />

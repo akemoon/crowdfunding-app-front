@@ -45,7 +45,7 @@
 
 <header class="topbar">
   <!-- TODO: update brand name when finalized -->
-  <a class="brand" href="/">Краудфандинг</a>
+  <a class="brand" href="/">Краудфандинговая платформа</a>
 
   <div class="topbar-right">
     {#if $page.url.pathname !== '/'}

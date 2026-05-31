@@ -125,6 +125,7 @@
           {/if}
         </div>
         <p class="username">@{user.username}</p>
+        <p class="followers">{user.followersCount} {user.followersCount === 1 ? 'подписчик' : user.followersCount >= 2 && user.followersCount <= 4 ? 'подписчика' : 'подписчиков'}</p>
         {#if user.description}
           <p class="bio">{user.description}</p>
         {/if}
@@ -253,6 +254,12 @@
   .username {
     margin: 0;
     font-size: 14px;
+    color: var(--text-muted);
+  }
+
+  .followers {
+    margin: 0;
+    font-size: 13px;
     color: var(--text-muted);
   }
 

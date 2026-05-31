@@ -15,7 +15,8 @@
     errorMsg = '';
     searched = false;
 
-    const res = await searchUsers(q, 20, 0);
+    const accessToken = localStorage.getItem('accessToken') ?? '';
+    const res = await searchUsers(q, 20, 0, accessToken);
     loading = false;
     searched = true;
 

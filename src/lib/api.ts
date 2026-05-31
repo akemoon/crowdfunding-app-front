@@ -96,11 +96,12 @@ export async function signout(accessToken: string, refreshToken: string): Promis
 }
 
 export interface UserProfile {
-  id:          string;
-  username:    string;
-  displayName: string;
-  description: string;
-  avatarUrl:   string;
+  id:             string;
+  username:       string;
+  displayName:    string;
+  description:    string;
+  avatarUrl:      string;
+  followersCount: number;
 }
 
 // Returns public profile of any user by ID
@@ -549,9 +550,10 @@ export async function searchUsers(
   q: string,
   limit: number,
   offset: number,
+  accessToken: string,
 ): Promise<UserSearchResult[] | ApiError> {
   const params = new URLSearchParams({ q, limit: String(limit), offset: String(offset) });
-  const res = await fetch(`${BASE}/users/search?${params}`);
+  const res = await authFetch(`${BASE}/users/search?${params}`, {}, accessToken);
   if (res.status === 200) return res.json() as Promise<UserSearchResult[]>;
   return parseError(res);
 }
