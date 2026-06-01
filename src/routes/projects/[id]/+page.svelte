@@ -188,6 +188,7 @@
       {/if}
     </div>
 
+    {#if project.status === 'active'}
     <div class="contribute-block">
       <h2>Поддержать проект</h2>
       {#if contributeSuccess}
@@ -210,6 +211,7 @@
         <p class="contribute-error">{contributeError}</p>
       {/if}
     </div>
+    {/if}
   {/if}
 </div>
 

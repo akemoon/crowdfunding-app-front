@@ -236,10 +236,11 @@
   let boostLoading = false;
 
   const BOOST_ERRORS: Record<string, string> = {
-    forbidden:          'Нет доступа.',
-    project_not_active: 'Буст доступен только для активного проекта.',
-    promo_code_not_found: 'Промокод не найден.',
-    project_not_found:    'Проект не найден.',
+    forbidden:              'Нет доступа.',
+    project_not_active:     'Буст доступен только для активного проекта.',
+    promo_code_not_found:   'Промокод не найден.',
+    project_not_found:      'Проект не найден.',
+    invalid_promo_code_format: 'Неверный формат промокода.',
   };
 
   async function submitBoost() {
